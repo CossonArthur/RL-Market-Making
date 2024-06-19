@@ -72,16 +72,16 @@ def RSI(price: List, n: int = 300) -> float:
     return 100 - 100 / (1 + rs)
 
 
-def book_imbalance(asks, bids) -> float:
+def book_imbalance(asks_volume, bids_volume) -> float:
     """
     Calculate the book imbalance.
 
     Args:
-    asks (List): List of ask prices and sizes.
-    bids (List): List of bid prices and sizes.
+    asks_volume (List): List of ask prices and sizes.
+    bids_volume (List): List of bid prices and sizes.
     """
-    bids_size = sum([bid[1] for bid in bids])
-    asks_size = sum([ask[1] for ask in asks])
+    bids_size = sum(bids_volume)
+    asks_size = sum(asks_volume)
 
     if asks_size + bids_size == 0:
         return 0.0

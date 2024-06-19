@@ -1,12 +1,14 @@
 import lakeapi
 import datetime
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from time import time
 
 from environment.env import OrderBook, Trade, MarketEvent
 
+lakeapi.use_sample_data(anonymous_access=True)
+
 
 def load_book(max_depth=19):
-    lakeapi.use_sample_data(anonymous_access=True)
     books = lakeapi.load_data(
         table="book",
         start=datetime.datetime(2022, 10, 1),
@@ -22,7 +24,7 @@ def load_book(max_depth=19):
     books["origin_time"] = books["origin_time"].apply(lambda x: x.timestamp())
 
     # check for missing values in the data
-    print("Missing values for book : ", books.isnull().sum().sum(), "\n" + "-" * 50)
+    print("-" * 50 + "\n", "Missing values for book : ", books.isnull().sum().sum())
     # per column
     # print("missing values per colum :\n", books.isnull().sum())
 
@@ -50,8 +52,6 @@ def load_book(max_depth=19):
 
 
 def load_trades():
-
-    lakeapi.use_sample_data(anonymous_access=True)
     trades = lakeapi.load_data(
         table="trades",
         start=datetime.datetime(2022, 10, 1),
@@ -66,7 +66,7 @@ def load_trades():
     trades["origin_time"] = trades["origin_time"].apply(lambda x: x.timestamp())
 
     # check for missing values in the data
-    print("Missing values for trades : ", trades.isnull().sum().sum(), "\n" + "-" * 50)
+    print("-" * 50 + "\n", "Missing values for trades : ", trades.isnull().sum().sum())
     # per column
     # print("missing values per colum :\n", books.isnull().sum())
 
@@ -87,22 +87,28 @@ def compute_market_event(books, trades):
 
 
 def load_data(max_depth=19):
-    print("Loading book data...", end="\r")
-    t1 = time()
-    books = load_book(max_depth)
-    t2 = time()
-    print(f"Book data loaded in {t2-t1:.2f}s")
+    with ThreadPoolExecutor() as executor:
+        future_books = executor.submit(load_book)
+        future_trades = executor.submit(load_trades)
 
-    print("Loading trade data...", end="\r")
-    t1 = time()
-    trades = load_trades()
-    t2 = time()
-    print(f"Trade data loaded in {t2-t1:.2f}s")
+        print("Loading book and trade data concurrently...")
+        t1 = time()
 
-    print("Computing market events...", end="\r")
-    t1 = time()
-    md = compute_market_event(books, trades)
-    t2 = time()
-    print(f"Market events computed in {t2-t1:.2f}s")
+        books = future_books.result()
+        trades = future_trades.result()
 
-    return md
+        t2 = time()
+        print(f"Data loaded in {t2 - t1:.2f}s")
+
+    with ThreadPoolExecutor() as executor:
+        future_market_events = executor.submit(compute_market_event, books, trades)
+
+        print("Computing market events concurrently...")
+        t1 = time()
+
+        market_events = future_market_events.result()
+
+        t2 = time()
+        print(f"Market events computed in {t2 - t1:.2f}s")
+
+    return market_events

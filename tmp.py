@@ -7,18 +7,15 @@ from utils.load_data import load_data
 market_data = load_data()
 
 # Configuration and initialization
-n_actions = 10  # Example: number of discrete actions
-n_states = 300  # Example: number of discrete states
-q_learning = QLearning(n_actions, n_states)
+q_learning = QLearning()
 
 
 min_position = 0  # Example: minimum position size
 max_position = 1000  # Example: maximum position size
-delay = 10e9  # 1 second in nanoseconds
-hold_time = 5 * 10e9  # 5 seconds in nanoseconds
-trade_size = 0.001  # Example trade size
-taker_fee = 0.0004  # Example taker fee
-maker_fee = -0.00004  # Example maker fee
+delay = 5e8
+hold_time = 1 * 10e9
+trade_size = 0.001
+maker_fee = -0.00004
 
 # Initialize strategy
 strategy = RLStrategy(
@@ -28,7 +25,6 @@ strategy = RLStrategy(
     delay=delay,
     hold_time=hold_time,
     trade_size=trade_size,
-    taker_fee=taker_fee,
     maker_fee=maker_fee,
     order_book_depth=5,
 )

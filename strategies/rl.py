@@ -2,6 +2,7 @@ from typing import List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
+import datetime
 
 from environment.env import OwnTrade, Sim, MarketEvent, Order, update_best_positions
 from utils.features import book_imbalance, RSI, volatility
@@ -66,7 +67,6 @@ class RLStrategy:
         delay: float,
         hold_time: Optional[float] = None,
         trade_size: float = 0.001,
-        taker_fee: float = 0.0004,
         maker_fee: float = -0.00004,
         order_book_depth: int = 10,
     ) -> None:
@@ -78,13 +78,11 @@ class RLStrategy:
             delay(float): delay beetween orders in nanoseconds
             hold_time(Optional[float]): hold time in nanoseconds
             trade_size(float): trade size
-            taker_fee(float): taker fee
             maker_fee(float): maker fee
             order_book_depth(int): order book depth to be considered for action space
         """
         self.model = model
 
-        self.taker_fee = taker_fee
         self.maker_fee = maker_fee
         self.trade_size = trade_size
         self.min_position = min_position
@@ -123,17 +121,19 @@ class RLStrategy:
             ]
         }
 
-    def place_order(self, sim: Sim, action_id: float, receive_ts: float, asks, bids):
+    def place_order(
+        self, sim: Sim, action_id: float, receive_ts: float, asks_price, bids_price
+    ):
         if action_id == 0:
             return
 
         else:
             ask_level, bid_level = self.action_dict[action_id]
             ask_order = sim.place_order(
-                receive_ts, self.trade_size, "sell", asks[ask_level]
+                receive_ts, self.trade_size, "sell", asks_price[ask_level]
             )
             bid_order = sim.place_order(
-                receive_ts, self.trade_size, "buy", bids[bid_level]
+                receive_ts, self.trade_size, "buy", bids_price[bid_level]
             )
 
             self.ongoing_orders[bid_order.order_id] = (bid_order, "LIMIT")
@@ -172,8 +172,10 @@ class RLStrategy:
         # current best positions
         best_bid = -np.inf
         best_ask = np.inf
-        bids = [-np.inf] * len(self.action_dict)
-        asks = [np.inf] * len(self.action_dict)
+        bids_price = [-np.inf] * len(self.action_dict)
+        asks_price = [np.inf] * len(self.action_dict)
+        bids_volume = [0] * len(self.action_dict)
+        asks_volume = [0] * len(self.action_dict)
 
         # last order timestamp
         prev_time = -np.inf
@@ -188,10 +190,18 @@ class RLStrategy:
         if mode != "train":
             count = 1e8
 
+        t1 = datetime.datetime.now().timestamp()
+
         while len(self.trajectory["rewards"]) < count:
             # get update from simulator
+            t2 = datetime.datetime.now().timestamp()
             receive_ts, updates = sim.tick()
-            print(receive_ts, end="\r")
+            print(
+                f"Elapsed time: {t2 - t1:.2f}s \n",
+                f"Time: {receive_ts/1e9:.2f}s \n",
+                f"Number of rewards: {len(self.trajectory['rewards'])}",
+                end="\r",
+            )
 
             if updates is None:
                 break
@@ -203,7 +213,14 @@ class RLStrategy:
                 # if update is market data, update best position
                 if isinstance(update, MarketEvent):
                     if update.orderbook is not None:
-                        best_bid, best_ask, asks, bids = update_best_positions(
+                        (
+                            best_bid,
+                            best_ask,
+                            asks_price,
+                            bids_price,
+                            asks_volume,
+                            bids_volume,
+                        ) = update_best_positions(
                             best_bid, best_ask, update, levels=True
                         )
                     md_list.append(update)
@@ -241,7 +258,7 @@ class RLStrategy:
                 # update state
                 prev_state = current_state
                 current_state = self.get_state(
-                    best_ask, best_bid, sim.price_history, asks, bids
+                    best_ask, best_bid, sim.price_history, asks_volume, bids_volume
                 )
                 self.trajectory["observations"].append(current_state)
 
@@ -255,7 +272,9 @@ class RLStrategy:
                     self.action_dict[current_action] if current_action != 0 else None
                 )
 
-                self.place_order(sim, current_action, receive_ts, asks, bids)
+                self.place_order(
+                    sim, current_action, receive_ts, asks_price, bids_price
+                )
 
                 if mode == "train":
                     if prev_total_pnl is None:
@@ -339,11 +358,12 @@ class RLStrategy:
 
         return tuple(indices)
 
-    def get_state(self, best_ask, best_bid, prices, asks, bids) -> Tuple[float, float]:
+    def get_state(
+        self, best_ask, best_bid, prices, asks_size, bids_size
+    ) -> Tuple[float, float]:
         inventory_ratio = self.coin_position - self.min_position / (
             self.max_position - self.min_position
         )
-        tpnl = self.realized_pnl + self.unrealized_pnl
 
         spread = best_ask - best_bid
 
@@ -351,11 +371,10 @@ class RLStrategy:
 
         rsi = RSI(prices, 300)
 
-        book_imb = book_imbalance(asks, bids)
+        book_imb = book_imbalance(asks_size, bids_size)
 
         return (
             inventory_ratio,
-            tpnl,
             spread,
             vol,
             rsi,

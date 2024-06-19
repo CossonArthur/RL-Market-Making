@@ -75,8 +75,10 @@ def update_best_positions(
     Returns:
         best_bid(float): best bid price
         best_ask(float): best ask price
-        asks(List[float]): ask levels
-        bids(List[float]): bid levels
+        asks_price(List[float]): ask price levels
+        bids_price(List[float]): bid price levels
+        asks_volume(List[float]): ask volume levels
+        bids_volume(List[float]): bid volume levels
 
     """
 
@@ -86,9 +88,13 @@ def update_best_positions(
 
         # return ask and bid levels
         if levels:
-            asks = [level[0] for level in market_event.orderbook.asks]
-            bids = [level[0] for level in market_event.orderbook.bids]
-            return best_bid, best_ask, asks, bids
+            asks_price = [level[0] for level in market_event.orderbook.asks]
+            bids_price = [level[0] for level in market_event.orderbook.bids]
+
+            asks_volume = [level[0] for level in market_event.orderbook.asks]
+            bids_volume = [level[0] for level in market_event.orderbook.bids]
+
+            return best_bid, best_ask, asks_price, bids_price, asks_volume, bids_volume
         else:
             return best_bid, best_ask
 
@@ -182,7 +188,7 @@ class Sim:
         self.best_bid = self.market_event.orderbook.bids[0][0]
         self.best_ask = self.market_event.orderbook.asks[0][0]
 
-        self.price_history.append(self.best_bid + self.best_ask) / 2
+        self.price_history.append((self.best_bid + self.best_ask) / 2)
 
     def update_last_trade(self) -> None:
         assert not self.market_event is None, "no current market data!"
