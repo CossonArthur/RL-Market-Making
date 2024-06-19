@@ -4,10 +4,7 @@ from environment.env import Sim
 from strategies.rl import QLearning, RLStrategy, evaluate_strategy
 from utils.load_data import load_data
 
-
-print("data loading...")
 market_data = load_data()
-print("data loaded")
 
 # Configuration and initialization
 n_actions = 10  # Example: number of discrete actions

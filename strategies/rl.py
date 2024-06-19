@@ -83,8 +83,6 @@ class RLStrategy:
             order_book_depth(int): order book depth to be considered for action space
         """
         self.model = model
-        self.features_df["inventory_ratio"] = 0
-        self.features_df["tpnl"] = 0
 
         self.taker_fee = taker_fee
         self.maker_fee = maker_fee
