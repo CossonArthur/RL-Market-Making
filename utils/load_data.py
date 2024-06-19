@@ -18,7 +18,7 @@ def load_book(max_depth=19):
     books.drop(columns=["exchange", "symbol", "sequence_number"], inplace=True)
     # convert datetime to float
     books["received_time"] = books["received_time"].apply(lambda x: x.timestamp())
-    books["exchange_ts"] = books["exchange_ts"].apply(lambda x: x.timestamp())
+    books["origin_time"] = books["origin_time"].apply(lambda x: x.timestamp())
 
     # check for missing values in the data
     print("Missing values for book : ", books.isnull().sum().sum(), "\n" + "-" * 50)
@@ -43,7 +43,7 @@ def load_book(max_depth=19):
     return list(
         OrderBook(*args)
         for args in zip(
-            books.exchange_ts.values, books.received_time.values, asks, bids
+            books.origin_time.values, books.received_time.values, asks, bids
         )
     )
 
@@ -59,10 +59,10 @@ def load_trades():
         exchanges=["BINANCE"],
     )
 
-    trades = trades[["exchange_ts", "received_time", "side", "price", "quantity"]]
+    trades = trades[["origin_time", "received_time", "side", "price", "quantity"]]
 
     trades["received_time"] = trades["received_time"].apply(lambda x: x.timestamp())
-    trades["exchange_ts"] = trades["exchange_ts"].apply(lambda x: x.timestamp())
+    trades["origin_time"] = trades["origin_time"].apply(lambda x: x.timestamp())
 
     # check for missing values in the data
     print("Missing values for trades : ", trades.isnull().sum().sum(), "\n" + "-" * 50)
@@ -74,8 +74,8 @@ def load_trades():
 
 def compute_market_event(books, trades):
 
-    trades_dict = {(trade.exchange_ts, trade.receive_at): trade for trade in trades}
-    books_dict = {(book.exchange_ts, book.receive_at): book for book in books}
+    trades_dict = {(trade.exchange_ts, trade.receive_ts): trade for trade in trades}
+    books_dict = {(book.exchange_ts, book.receive_ts): book for book in books}
 
     ts = sorted(trades_dict.keys() | books_dict.keys())
 
