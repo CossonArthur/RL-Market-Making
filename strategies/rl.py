@@ -210,6 +210,7 @@ class RLStrategy:
                 f"Elapsed time: {t2 - t1:.2f}s",
                 f"Time: {simulated_time//3600:.2f}h {(simulated_time%3600)//60:.2f}m {simulated_time%60:.2f}s",
                 f"Number of rewards: {len(self.trajectory['rewards'])}",
+                " " * 50,
                 end="\r",
             )
 
