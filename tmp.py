@@ -5,22 +5,15 @@ from strategies.rl import QLearning, RLStrategy, evaluate_strategy
 from utils.load_data import load_data
 
 
+print("data loading...")
 market_data = load_data()
+print("data loaded")
 
 # Configuration and initialization
 n_actions = 10  # Example: number of discrete actions
 n_states = 300  # Example: number of discrete states
 q_learning = QLearning(n_actions, n_states)
 
-# Example DataFrame for features
-ess_df = pd.DataFrame(
-    {
-        "receive_ts": pd.date_range(start="1/1/2023", periods=300, freq="S"),
-        "feature1": np.random.randn(300),
-        "feature2": np.random.randn(300),
-        # Add more features as needed
-    }
-)
 
 min_position = 0  # Example: minimum position size
 max_position = 1000  # Example: maximum position size
@@ -33,7 +26,6 @@ maker_fee = -0.00004  # Example maker fee
 # Initialize strategy
 strategy = RLStrategy(
     model=q_learning,
-    ess_df=ess_df,
     min_position=min_position,
     max_position=max_position,
     delay=delay,
@@ -41,6 +33,7 @@ strategy = RLStrategy(
     trade_size=trade_size,
     taker_fee=taker_fee,
     maker_fee=maker_fee,
+    order_book_depth=5,
 )
 
 # Create a simulator instance (assuming Sim class is properly defined in simulator module)

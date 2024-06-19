@@ -1,5 +1,6 @@
 import lakeapi
 import datetime
+from time import time
 
 from environment.env import OrderBook, Trade, MarketEvent
 
@@ -86,7 +87,22 @@ def compute_market_event(books, trades):
 
 
 def load_data(max_depth=19):
+    print("Loading book data...", end="\r")
+    t1 = time()
     books = load_book(max_depth)
-    trades = load_trades()
+    t2 = time()
+    print(f"Book data loaded in {t2-t1:.2f}s")
 
-    return compute_market_event(books, trades)
+    print("Loading trade data...", end="\r")
+    t1 = time()
+    trades = load_trades()
+    t2 = time()
+    print(f"Trade data loaded in {t2-t1:.2f}s")
+
+    print("Computing market events...", end="\r")
+    t1 = time()
+    md = compute_market_event(books, trades)
+    t2 = time()
+    print(f"Market events computed in {t2-t1:.2f}s")
+
+    return md

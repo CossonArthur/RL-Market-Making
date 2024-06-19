@@ -115,8 +115,6 @@ class Sim:
         """
 
         self.price_history = []
-        self.price_history.index = pd.to_datetime(self.price_history.index)
-        self.price_history.index.name = "ts"
 
         # market event queue
         self.market_event_queue = deque(market_data)

@@ -61,7 +61,6 @@ class RLStrategy:
     def __init__(
         self,
         model: Union[QLearning],
-        ess_df: pd.DataFrame,
         min_position: float,
         max_position: float,
         delay: float,
@@ -74,7 +73,6 @@ class RLStrategy:
         """
         Args:
             model(Union[QLearning]): RL model
-            ess_df(pd.DataFrame): DataFrame containing essential features
             min_position(float): minimum position size
             max_position(float): maximum position size
             delay(float): delay beetween orders in nanoseconds
@@ -85,7 +83,6 @@ class RLStrategy:
             order_book_depth(int): order book depth to be considered for action space
         """
         self.model = model
-        self.features_df = ess_df
         self.features_df["inventory_ratio"] = 0
         self.features_df["tpnl"] = 0
 
@@ -177,8 +174,8 @@ class RLStrategy:
         # current best positions
         best_bid = -np.inf
         best_ask = np.inf
-        bids = [-np.inf] * 10
-        asks = [np.inf] * 10
+        bids = [-np.inf] * len(self.action_dict)
+        asks = [np.inf] * len(self.action_dict)
 
         # last order timestamp
         prev_time = -np.inf
@@ -196,6 +193,8 @@ class RLStrategy:
         while len(self.trajectory["rewards"]) < count:
             # get update from simulator
             receive_ts, updates = sim.tick()
+            print(receive_ts, end="\r")
+
             if updates is None:
                 break
 
@@ -243,7 +242,9 @@ class RLStrategy:
 
                 # update state
                 prev_state = current_state
-                current_state = self.get_state(best_ask, best_bid)
+                current_state = self.get_state(
+                    best_ask, best_bid, sim.price_history, asks, bids
+                )
                 self.trajectory["observations"].append(current_state)
 
                 # choose action
@@ -296,8 +297,6 @@ class RLStrategy:
         return trades_list, md_list, updates_list, self.actions_history, self.trajectory
 
     def reset(self):
-        self.features_df["inventory_ratio"] = 0
-        self.features_df["tpnl"] = 0
 
         self.coin_position = 0
         self.realized_pnl = 0
@@ -350,7 +349,7 @@ class RLStrategy:
 
         spread = best_ask - best_bid
 
-        volatility = volatility(prices, 300)
+        vol = volatility(prices, 300)
 
         rsi = RSI(prices, 300)
 
@@ -360,7 +359,7 @@ class RLStrategy:
             inventory_ratio,
             tpnl,
             spread,
-            volatility,
+            vol,
             rsi,
             book_imb,
         )
