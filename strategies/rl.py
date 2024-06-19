@@ -197,8 +197,8 @@ class RLStrategy:
             t2 = datetime.datetime.now().timestamp()
             receive_ts, updates = sim.tick()
             print(
-                f"Elapsed time: {t2 - t1:.2f}s \n",
-                f"Time: {receive_ts/1e9:.2f}s \n",
+                f"Elapsed time: {t2 - t1:.2f}s",
+                f"Time: {receive_ts/1e9:.2f}s",
                 f"Number of rewards: {len(self.trajectory['rewards'])}",
                 end="\r",
             )
