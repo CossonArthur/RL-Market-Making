@@ -18,9 +18,9 @@ class QLearning:
 
     def choose_action(self, state, epsilon=0.1):
         if np.random.uniform(0, 1) < epsilon:
-            return np.random.choice(self.q_table.shape[1])
+            return np.random.choice(self.q_table.shape[-1])
         else:
-            return np.argmax(self.q_table[state, :])
+            return np.argmax(self.q_table[state])
 
     def update(self, state, action, reward, next_state, next_action):
         self.q_table[state + (action,)] += self.alpha * (
@@ -41,9 +41,9 @@ class SARSA:
 
     def choose_action(self, state, epsilon=0.1):
         if np.random.uniform(0, 1) < epsilon:
-            return np.random.choice(self.q_table.shape[1])
+            return np.random.choice(self.q_table.shape[-1])
         else:
-            return np.argmax(self.q_table[state, :])
+            return np.argmax(self.q_table[state])
 
     def update(self, state, action, reward, next_state, next_action):
         self.q_table[state + (action,)] += self.alpha * (
@@ -278,7 +278,8 @@ class RLStrategy:
                 )
 
                 self.trajectory["actions"].append(
-                    self.action_dict[current_action] if current_action != 0 else None
+                    self.action_dict[current_action]
+                    #   if current_action != 0 else None
                 )
 
                 self.place_order(

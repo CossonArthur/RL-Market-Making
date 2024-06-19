@@ -1,9 +1,7 @@
 import lakeapi
 import datetime
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 from time import time
-import pickle
-import os
 
 from environment.env import OrderBook, Trade, MarketEvent
 
@@ -24,6 +22,9 @@ def load_book(max_depth=19):
     # convert datetime to float
     books["received_time"] = books["received_time"].apply(lambda x: x.timestamp())
     books["origin_time"] = books["origin_time"].apply(lambda x: x.timestamp())
+
+    # drop 1 out of 2 rows to reduce the size of the data
+    books = books[::2]
 
     # check for missing values in the data
     print("-" * 50 + "\n", "Missing values for book : ", books.isnull().sum().sum())
@@ -64,6 +65,9 @@ def load_trades():
 
     trades = trades[["origin_time", "received_time", "side", "price", "quantity"]]
 
+    # drop 3 out of 4 rows to reduce the size of the data
+    trades = trades[::4]
+
     trades["received_time"] = trades["received_time"].apply(lambda x: x.timestamp())
     trades["origin_time"] = trades["origin_time"].apply(lambda x: x.timestamp())
 
@@ -90,10 +94,6 @@ def compute_market_event(books, trades):
 
 def load_data(max_depth=19):
 
-    if os.path.exists("market_events.pkl"):
-        with open("market_events.pkl", "rb") as f:
-            return pickle.load(f)
-
     with ThreadPoolExecutor() as executor:
         future_books = executor.submit(load_book)
         future_trades = executor.submit(load_trades)
@@ -117,8 +117,5 @@ def load_data(max_depth=19):
 
         t2 = time()
         print(f"Market events computed in {t2 - t1:.2f}s")
-
-    with open("market_events.pkl", "wb") as f:
-        pickle.dump(market_events, f)
 
     return market_events
