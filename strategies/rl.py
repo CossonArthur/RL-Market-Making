@@ -165,8 +165,10 @@ class RLStrategy:
         """
 
         self.model.initialize(
-            [x[0] + 2 for x in self.state_space],
-            len(self.action_dict) + 1,  # level + 2 for val beyond max and min
+            [
+                x[0] + 2 for x in self.state_space
+            ],  # level + 2 for val beyond max and min
+            len(self.action_dict),  #  + 1, if we want to add a no action
         )
 
         md_list: List[MarketEvent] = []
