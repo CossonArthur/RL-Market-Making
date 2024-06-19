@@ -110,11 +110,13 @@ class RLStrategy:
             for i in range(order_book_depth + 1)
             for j in range(order_book_depth + 1)
         }
+
         self.state_space = [  # level, min, max for each feature
             (10, 0, 1),  # inventory ratio
             (10, -1, 1),  # book imbalance
-            (10, 0, 1),  # spread
-            # (10, 0, 1),  # volatility
+            (10, 0, 1),  # spread #  TODO: Define relevant state space
+            (10, 0, 1),  # volatility #  TODO: Define relevant state space
+            (10, 0, 100),  # rsi
         ]
 
         self.trajectory = {
