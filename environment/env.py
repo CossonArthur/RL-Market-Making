@@ -8,8 +8,8 @@ from typing import List, Optional, Tuple, Union, Deque, Dict
 @dataclass
 class Order:
     id: str
+    place_ts: float
     exchange_ts: float
-    receive_ts: float
     side: str
     price: float
     quantity: float
@@ -40,6 +40,7 @@ class OrderBook:
 
 @dataclass
 class OwnTrade:
+    placing_ts: float
     exchange_ts: float
     receive_ts: float
     trade_id: int
@@ -350,7 +351,7 @@ class Sim:
             self.ready_to_execute_orders.pop(k)
 
     def place_order(self, ts: float, size: float, side: str, price: float) -> Order:
-        order = Order(ts, ts + self.latency, self.get_order_id(), side, size, price)
+        order = Order(self.get_order_id(), ts, ts + self.latency, side, size, price)
         self.actions_queue.append(order)
         return order
 
