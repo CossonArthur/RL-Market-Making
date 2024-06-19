@@ -145,7 +145,7 @@ class RLStrategy:
 
         self.actions_history.append(
             (
-                datetime.datetime(receive_ts, unit="s"),
+                datetime.datetime.fromtimestamp(receive_ts),
                 self.coin_position,
                 self.action_dict[action_id],
             )
