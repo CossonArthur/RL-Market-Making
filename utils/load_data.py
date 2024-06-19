@@ -2,6 +2,8 @@ import lakeapi
 import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from time import time
+import pickle
+import os
 
 from environment.env import OrderBook, Trade, MarketEvent
 
@@ -87,6 +89,11 @@ def compute_market_event(books, trades):
 
 
 def load_data(max_depth=19):
+
+    if os.path.exists("market_events.pkl"):
+        with open("market_events.pkl", "rb") as f:
+            return pickle.load(f)
+
     with ThreadPoolExecutor() as executor:
         future_books = executor.submit(load_book)
         future_trades = executor.submit(load_trades)
@@ -110,5 +117,8 @@ def load_data(max_depth=19):
 
         t2 = time()
         print(f"Market events computed in {t2 - t1:.2f}s")
+
+    with open("market_events.pkl", "wb") as f:
+        pickle.dump(market_events, f)
 
     return market_events

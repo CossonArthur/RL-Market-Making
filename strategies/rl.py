@@ -65,6 +65,7 @@ class RLStrategy:
         min_position: float,
         max_position: float,
         delay: float,
+        initial_position: Optional[float] = None,
         hold_time: Optional[float] = None,
         trade_size: float = 0.001,
         maker_fee: float = -0.00004,
@@ -73,6 +74,7 @@ class RLStrategy:
         """
         Args:
             model(Union[QLearning]): RL model
+            initial_position(float): initial position size
             min_position(float): minimum position size
             max_position(float): maximum position size
             delay(float): delay beetween orders in nanoseconds
@@ -89,17 +91,19 @@ class RLStrategy:
         self.max_position = max_position
         self.delay = delay
         if hold_time is None:
-            hold_time = min(delay * 5, 5e-3)
+            hold_time = min(delay * 5, 5e-2)
         self.hold_time = hold_time
 
-        self.coin_position = 0
+        if initial_position is None:
+            initial_position = (max_position + min_position) / 2
+        self.coin_position = initial_position
         self.realized_pnl = 0
         self.unrealized_pnl = 0
         self.actions_history = []
         self.ongoing_orders = {}
 
         self.action_dict = {  # id : (ask_level, bid_level)
-            i + j + 1: (i, j)
+            i + j: (i, j)
             for i in range(order_book_depth + 1)
             for j in range(order_book_depth + 1)
         }
@@ -124,7 +128,7 @@ class RLStrategy:
     def place_order(
         self, sim: Sim, action_id: float, receive_ts: float, asks_price, bids_price
     ):
-        if action_id == 0:
+        if action_id == -1:
             return
 
         else:
@@ -248,6 +252,11 @@ class RLStrategy:
                         self.unrealized_pnl = self.coin_position * (
                             (best_ask + best_bid) / 2
                         )
+                        print(
+                            f"Coin position: {self.coin_position}",
+                            f"Realized PnL: {self.realized_pnl}",
+                            f"Unrealized PnL: {self.unrealized_pnl}",
+                        )
 
                 else:
                     assert False, "invalid type of update!"
@@ -311,7 +320,9 @@ class RLStrategy:
             for ID in to_cancel:
                 self.ongoing_orders.pop(ID)
 
-        return trades_list, md_list, updates_list, self.actions_history, self.trajectory
+        print(f"Simulation runned for {t2 - t1:.2f}s", " " * 50)
+
+        return trades_list, md_list, self.actions_history, self.trajectory
 
     def reset(self):
 
@@ -364,13 +375,9 @@ class RLStrategy:
         inventory_ratio = self.coin_position - self.min_position / (
             self.max_position - self.min_position
         )
-
         spread = best_ask - best_bid
-
         vol = volatility(prices, 300)
-
         rsi = RSI(prices, 300)
-
         book_imb = book_imbalance(asks_size, bids_size)
 
         return (
@@ -381,8 +388,16 @@ class RLStrategy:
             book_imb,
         )
 
+    def epsilon_var(self, alpha: float = 1.0, beta: float = 0.5):
+        r_t = get_actual_reward()
+        hat_r_t = get_expected_reward()
+        Delta_t = r_t - hat_r_t
+
+        # Compute epsilon using logistic function
+        return 1 / (1 + np.exp(-alpha * (Delta_t - beta)))
+
     def get_expected_reward(self, state, action):
-        return self.model.q_table[state, action]
+        return self.model.q_table[state + (action,)]
 
     def get_q_table(self):
         return self.model.q_table
@@ -395,27 +410,10 @@ class RLStrategy:
 
 
 # TODO: Add a function to evaluate the strategy graph etc
-def evaluate_strategy(strategy, sim, mode, count=1000):
-    trades, md_updates, all_updates, orders = strategy.run(sim, mode, count)
+def evaluate_strategy(strategy: RLStrategy, sim: Sim, mode: str, count: int = 10000):
+    trades, md_updates, orders, trajectory = strategy.run(sim, mode, count)
 
     total_pnl = strategy.realized_pnl + strategy.unrealized_pnl
-    num_trades = len(trades)
 
     print(f"Total PnL: {total_pnl}")
-    print(f"Number of Trades: {num_trades}")
-
-    return total_pnl, num_trades
-
-
-# # Define parameters
-# alpha = 1.0  # Steepness of logistic function
-# beta = 0.5  # Midpoint of logistic function
-
-
-# def epsilon_var(alpha: float = 1.0, beta: float = 0.5):
-#     r_t = get_actual_reward()
-#     hat_r_t = get_expected_reward()
-#     Delta_t = r_t - hat_r_t
-
-#     # Compute epsilon using logistic function
-#     return 1 / (1 + np.exp(-alpha * (Delta_t - beta)))
+    print(f"Number of Trades: {len(trades)}")

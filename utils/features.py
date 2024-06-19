@@ -49,7 +49,7 @@ def RSI(price: List, n: int = 300) -> float:
         alpha_rev = 1 - alpha
         n = data.shape[0]
 
-        pows = alpha_rev ** (np.arange(n + 1))
+        pows = (1 - alpha) ** (np.arange(n + 1))
 
         scale_arr = 1 / pows[:-1]
         offset = data[0] * pows[1:]
@@ -64,8 +64,8 @@ def RSI(price: List, n: int = 300) -> float:
     gain = delta[delta > 0]
     loss = -delta[delta < 0]
 
-    avg_gain = EMA(gain, n)
-    avg_loss = EMA(loss, n)
+    avg_gain = EMA(gain, n)[-1]
+    avg_loss = EMA(loss, n)[-1]
 
     rs = avg_gain / avg_loss
 

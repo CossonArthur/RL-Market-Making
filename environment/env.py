@@ -8,12 +8,12 @@ from typing import List, Optional, Tuple, Union, Deque, Dict
 
 @dataclass
 class Order:
-    id: str
+    order_id: str
     place_ts: float
     exchange_ts: float
     side: str
     price: float
-    quantity: float
+    size: float
 
 
 @dataclass
