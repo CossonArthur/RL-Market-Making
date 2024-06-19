@@ -202,9 +202,13 @@ class RLStrategy:
             # get update from simulator
             t2 = datetime.datetime.now().timestamp()
             receive_ts, updates = sim.tick()
+
+            simulated_time = (
+                receive_ts - datetime.datetime(year=2022, month=10, day=1).timestamp()
+            )
             print(
                 f"Elapsed time: {t2 - t1:.2f}s",
-                f"Time: {receive_ts/1e9:.2f}s",
+                f"Time: {simulated_time//3600:.2f}h {(simulated_time%3600)//60:.2f}m {simulated_time%60:.2f}s",
                 f"Number of rewards: {len(self.trajectory['rewards'])}",
                 end="\r",
             )

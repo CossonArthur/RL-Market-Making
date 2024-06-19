@@ -28,10 +28,10 @@ strategy = RLStrategy(
 )
 
 # Create a simulator instance (assuming Sim class is properly defined in simulator module)
-sim = Sim(market_data, 1e-3, 1e-3)
+sim = Sim(market_data, 1e-4, 1e-4)
 
 # Train and evaluate the strategy
-evaluate_strategy(strategy, sim, "train", 100000)
+evaluate_strategy(strategy, sim, "train", 500000)
 
 
 # # Save Q-table
