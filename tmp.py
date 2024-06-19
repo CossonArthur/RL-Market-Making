@@ -12,8 +12,7 @@ q_learning = QLearning()
 
 min_position = 0  # Example: minimum position size
 max_position = 1000  # Example: maximum position size
-delay = 5e8
-hold_time = 1 * 10e9
+delay = 5e-6
 trade_size = 0.001
 maker_fee = -0.00004
 
@@ -23,7 +22,6 @@ strategy = RLStrategy(
     min_position=min_position,
     max_position=max_position,
     delay=delay,
-    hold_time=hold_time,
     trade_size=trade_size,
     maker_fee=maker_fee,
     order_book_depth=5,

@@ -89,7 +89,7 @@ class RLStrategy:
         self.max_position = max_position
         self.delay = delay
         if hold_time is None:
-            hold_time = min(delay * 5, pd.Timedelta(10, "s").delta)
+            hold_time = min(delay * 5, 5e-3)
         self.hold_time = hold_time
 
         self.coin_position = 0
