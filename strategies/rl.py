@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 
 from environment.env import OwnTrade, Sim, MarketEvent, Order, update_best_positions
+from utils.features import book_imbalance, RSI, volatility
 
 
 class QLearning:
@@ -20,12 +21,12 @@ class QLearning:
         else:
             return np.argmax(self.q_table[state, :])
 
-    def update(self, state, action, next_action, reward, next_state):
-        self.q_table[state, action] += self.alpha * (
+    def update(self, state, action, reward, next_state, next_action):
+        self.q_table[state + (action,)] += self.alpha * (
             reward
             + self.gamma
-            * self.q_table[next_state, np.argmax(self.q_table[next_state, :])]
-            - self.q_table[state, action]
+            * self.q_table[next_state + (np.argmax(self.q_table[next_state]),)]
+            - self.q_table[state + (action,)]
         )
 
 
@@ -43,11 +44,11 @@ class SARSA:
         else:
             return np.argmax(self.q_table[state, :])
 
-    def update(self, state, action, next_action, reward, next_state):
-        self.q_table[state, action] += self.alpha * (
+    def update(self, state, action, reward, next_state, next_action):
+        self.q_table[state + (action,)] += self.alpha * (
             reward
-            + self.gamma * self.q_table[next_state, next_action]
-            - self.q_table[state, action]
+            + self.gamma * self.q_table[next_state + (next_action,)]
+            - self.q_table[state + (action,)]
         )
 
 
@@ -104,65 +105,26 @@ class RLStrategy:
         self.actions_history = []
         self.ongoing_orders = {}
 
-        self.action_dict = {
+        self.action_dict = {  # id : (ask_level, bid_level)
             i + j + 1: (i, j)
             for i in range(order_book_depth + 1)
             for j in range(order_book_depth + 1)
         }
-        self.state_space = [(10, 0, 1)]  # level, min, max for each feature
+        self.state_space = [  # level, min, max for each feature
+            (10, 0, 1),  # inventory ratio
+            (10, -1, 1),  # book imbalance
+            (10, 0, 1),  # spread
+            # (10, 0, 1),  # volatility
+        ]
 
-    def state_to_index(self, state_values):
-        """
-        Convert state space values to corresponding indices in the Q-table.
-
-        Args:
-            state_values (List[float]): List of state values
-        """
-        indices = []
-        for i, val in enumerate(state_values):
-            if val < self.state_space[i][1]:
-                indices.append(0)
-            elif val > self.state_space[i][2]:
-                indices.append(self.state_space[i][0])
-
-            # Normalize the state value to be between 0 and 1
-            normalized_val = (val - self.state_space[i][1]) / (
-                self.state_space[i][2] - self.state_space[i][1]
-            )
-
-            # Scale the normalized value to the number of levels and convert to an integer index
-            index = int(normalized_val * (self.state_space[i][0] - 1) + 1)
-            indices.append(index)
-
-        return tuple(indices)
-
-    def reset(self):
-        self.features_df["inventory_ratio"] = 0
-        self.features_df["tpnl"] = 0
-
-        self.coin_position = 0
-        self.realized_pnl = 0
-        self.unrealized_pnl = 0
-
-        self.actions_history = []
-        self.ongoing_orders = {}
-
-    def get_state(self, best_ask, best_bid) -> Tuple[float, float]:
-        inventory_ratio = self.coin_position - self.min_position / (
-            self.max_position - self.min_position
-        )
-        tpnl = self.realized_pnl + self.unrealized_pnl
-
-        spread = best_ask - best_bid
-
-        volatility = 0
-
-        return (
-            inventory_ratio,
-            tpnl,
-            spread,
-            volatility,
-        )
+        self.trajectory = {
+            key: []
+            for key in [
+                "actions",
+                "observations",
+                "rewards",
+            ]
+        }
 
     def place_order(self, sim: Sim, action_id: float, receive_ts: float, asks, bids):
         if action_id == 0:
@@ -182,7 +144,7 @@ class RLStrategy:
 
         self.actions_history.append((receive_ts, self.coin_position, action_id))
 
-    def run(self, sim: Sim, mode: str, count=1000) -> Tuple[
+    def run(self, sim: Sim, mode: str, count=10) -> Tuple[
         List[OwnTrade],
         List[MarketEvent],
         List[Union[OwnTrade, MarketEvent]],
@@ -215,17 +177,21 @@ class RLStrategy:
         best_ask = np.inf
         bids = [-np.inf] * 10
         asks = [np.inf] * 10
-        current_state = None
 
         # last order timestamp
         prev_time = -np.inf
         # orders that have not been executed/canceled yet
         prev_total_pnl = None
 
+        current_state = self.get_state(best_ask, best_bid, [], [], [])
+        prev_state = current_state
+        current_action = None
+        prev_action = None
+
         if mode != "train":
             count = 1e8
 
-        while len(self.actions_history) < count:
+        while len(self.trajectory["rewards"]) < count:
             # get update from simulator
             receive_ts, updates = sim.tick()
             if updates is None:
@@ -270,8 +236,26 @@ class RLStrategy:
                 else:
                     assert False, "invalid type of update!"
 
-            # if the
+            # if the delay has passed, place an order
             if receive_ts - prev_time >= self.delay:
+
+                # update state
+                prev_state = current_state
+                current_state = self.get_state(best_ask, best_bid)
+                self.trajectory["observations"].append(current_state)
+
+                # choose action
+                prev_action = current_action
+                current_action = self.model.choose_action(
+                    self.state_to_index(current_state)
+                )
+
+                self.trajectory["actions"].append(
+                    self.action_dict[current_action] if current_action != 0 else None
+                )
+
+                self.place_order(sim, current_action, receive_ts, asks, bids)
+
                 if mode == "train":
                     if prev_total_pnl is None:
                         prev_total_pnl = 0
@@ -280,44 +264,104 @@ class RLStrategy:
                         prev_total_pnl = self.realized_pnl + self.unrealized_pnl
                         prev_coin_pos = self.coin_position
 
-                current_state = self.get_state(best_ask, best_bid)
-                action = self.model.choose_action(current_state)
-
-                self.place_order(sim, action, receive_ts, asks, bids)
-
-                if mode == "train":
-                    next_state = self.get_state(features)
+                    # TODO: calculate reward
                     reward = (
                         self.realized_pnl
                         + self.unrealized_pnl
                         - prev_total_pnl
                         - abs(prev_coin_pos)
                     )
-                    self.model.update(current_state, action, reward, next_state)
+                    self.trajectory["rewards"].append(reward)
+
+                    self.model.update(
+                        self.state_to_index(prev_state),
+                        prev_action,
+                        reward,
+                        self.state_to_index(current_state),
+                        current_action,
+                    )
 
                 prev_time = receive_ts
 
-            canceled_orders = []
-            for order_id in self.ongoing_orders.keys():
-                if (
-                    receive_ts - self.ongoing_orders[order_id][0].placing_ts
-                    >= self.hold_time
-                ):
-                    order, order_type = self.ongoing_orders[order_id]
-                    if order_type == "LIMIT":
-                        if order.state == "WORKING":
-                            sim.cancel_order(receive_ts, order_id)
-                            canceled_orders.append(order_id)
-            for order_id in canceled_orders:
-                self.ongoing_orders.pop(order_id)
+            to_cancel = []
+            for ID, (order, order_type) in self.ongoing_orders.items():
+                if order.place_ts < receive_ts - self.hold_time:
+                    sim.cancel_order(receive_ts, ID)
+                    to_cancel.append(ID)
+            for ID in to_cancel:
+                self.ongoing_orders.pop(ID)
 
-        all_orders = sim.get_orders()
+        return trades_list, md_list, updates_list, self.actions_history, self.trajectory
 
-        return trades_list, md_list, updates_list, all_orders
+    def reset(self):
+        self.features_df["inventory_ratio"] = 0
+        self.features_df["tpnl"] = 0
 
-    def get_state(self, features):
-        # Simple state representation as the index of the maximum feature value.
-        return np.argmax(features.flatten())
+        self.coin_position = 0
+        self.realized_pnl = 0
+        self.unrealized_pnl = 0
+
+        self.actions_history = []
+        self.ongoing_orders = {}
+
+        self.trajectory = {
+            key: []
+            for key in [
+                "actions",
+                "observations",
+                "rewards",
+            ]
+        }
+
+    def state_to_index(self, state_values):
+        """
+        Convert state space values to corresponding indices in the Q-table.
+
+        Args:
+            state_values (List[float]): List of state values
+        """
+        indices = []
+        for i, val in enumerate(state_values):
+            if val < self.state_space[i][1]:
+                indices.append(0)
+                continue
+            elif val > self.state_space[i][2]:
+                indices.append(self.state_space[i][0])
+                continue
+
+            # Normalize the state value to be between 0 and 1
+            normalized_val = (val - self.state_space[i][1]) / (
+                self.state_space[i][2] - self.state_space[i][1]
+            )
+
+            # Scale the normalized value to the number of levels and convert to an integer index
+            index = int(normalized_val * (self.state_space[i][0] - 1) + 1)
+            indices.append(index)
+
+        return tuple(indices)
+
+    def get_state(self, best_ask, best_bid, prices, asks, bids) -> Tuple[float, float]:
+        inventory_ratio = self.coin_position - self.min_position / (
+            self.max_position - self.min_position
+        )
+        tpnl = self.realized_pnl + self.unrealized_pnl
+
+        spread = best_ask - best_bid
+
+        volatility = volatility(prices, 300)
+
+        rsi = RSI(prices, 300)
+
+        book_imb = book_imbalance(asks, bids)
+
+        return (
+            inventory_ratio,
+            tpnl,
+            spread,
+            volatility,
+            rsi,
+            book_imb,
+        )
 
     def get_expected_reward(self, state, action):
         return self.model.q_table[state, action]
@@ -332,14 +376,9 @@ class RLStrategy:
         self.model.q_table = np.load(path)
 
 
-# Simulation and evaluation function
-def simulate(strategy, sim, mode, count=1000):
-    trades, md_updates, all_updates, orders = strategy.run(sim, mode, count)
-    return trades, md_updates, all_updates, orders
-
-
+# TODO: Add a function to evaluate the strategy graph etc
 def evaluate_strategy(strategy, sim, mode, count=1000):
-    trades, md_updates, all_updates, orders = simulate(strategy, sim, mode, count)
+    trades, md_updates, all_updates, orders = strategy.run(sim, mode, count)
 
     total_pnl = strategy.realized_pnl + strategy.unrealized_pnl
     num_trades = len(trades)

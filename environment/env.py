@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 from collections import deque
 from dataclasses import dataclass
 from sortedcontainers import SortedDict
@@ -113,6 +114,10 @@ class Sim:
             market_event_latency(float): latency in nanoseconds
         """
 
+        self.price_history = []
+        self.price_history.index = pd.to_datetime(self.price_history.index)
+        self.price_history.index.name = "ts"
+
         # market event queue
         self.market_event_queue = deque(market_data)
         # agent action queue
@@ -178,6 +183,8 @@ class Sim:
 
         self.best_bid = self.market_event.orderbook.bids[0][0]
         self.best_ask = self.market_event.orderbook.asks[0][0]
+
+        self.price_history.append(self.best_bid + self.best_ask) / 2
 
     def update_last_trade(self) -> None:
         assert not self.market_event is None, "no current market data!"
