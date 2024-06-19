@@ -362,7 +362,7 @@ class Sim:
             self.ready_to_execute_orders.pop(k)
 
     def place_order(self, ts: float, size: float, side: str, price: float) -> Order:
-        order = Order(self.get_order_id(), ts, ts + self.latency, side, size, price)
+        order = Order(self.get_order_id(), ts, ts + self.latency, side, price, size)
         self.actions_queue.append(order)
         return order
 

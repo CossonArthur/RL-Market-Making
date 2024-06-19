@@ -143,7 +143,13 @@ class RLStrategy:
             self.ongoing_orders[bid_order.order_id] = (bid_order, "LIMIT")
             self.ongoing_orders[ask_order.order_id] = (ask_order, "LIMIT")
 
-        self.actions_history.append((receive_ts, self.coin_position, action_id))
+        self.actions_history.append(
+            (
+                datetime.datetime(receive_ts, unit="s"),
+                self.coin_position,
+                self.action_dict[action_id],
+            )
+        )
 
     def run(self, sim: Sim, mode: str, count=10) -> Tuple[
         List[OwnTrade],
