@@ -423,13 +423,3 @@ class RLStrategy:
 
     def load_q_table(self, path):
         self.model.q_table = np.load(path)
-
-
-# TODO: Add a function to evaluate the strategy graph etc
-def evaluate_strategy(strategy: RLStrategy, sim: Sim, mode: str, count: int = 10000):
-    trades, md_updates, orders, trajectory = strategy.run(sim, mode, count)
-
-    total_pnl = strategy.realized_pnl + strategy.unrealized_pnl
-
-    print(f"Total PnL: {total_pnl}")
-    print(f"Number of Trades: {len(trades)}")
