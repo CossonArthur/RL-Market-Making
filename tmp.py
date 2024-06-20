@@ -23,7 +23,7 @@ strategy = RLStrategy(
     delay=delay,
     trade_size=trade_size,
     maker_fee=maker_fee,
-    order_book_depth=2,
+    order_book_depth=4,
 )
 
 # Create a simulator instance (assuming Sim class is properly defined in simulator module)
@@ -31,7 +31,7 @@ sim = Sim(market_data, 1e-4, 1e-4)
 
 
 # Train and evaluate the strategy
-trades, md_updates, orders, trajectory = strategy.run(sim, "train", 400000)
+trades, md_updates, orders, trajectory = strategy.run(sim, "train", 500000)
 evaluate_strategy(strategy, trades, trajectory, md_updates)
 
 

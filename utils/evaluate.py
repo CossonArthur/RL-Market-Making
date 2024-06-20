@@ -60,7 +60,9 @@ def evaluate_strategy(
     print(f"Total PnL: {strategy.realized_pnl}")
     print(f"Number of Trades: {len(trades)}")
 
-    fig = make_subplots(rows=3, cols=1, subplot_titles=("Price", "PnL", "Inventory"))
+    fig = make_subplots(
+        rows=3, cols=1, shared_xaxes=True, subplot_titles=("Price", "PnL", "Inventory")
+    )
 
     fig.add_trace(
         go.Scatter(
@@ -75,8 +77,10 @@ def evaluate_strategy(
     )
     fig.add_trace(
         go.Scatter(
-            x=np.arange(len(trajectory["realized_pnl"])),
-            y=trajectory["realized_pnl"],
+            x=trajectory.index.to_series()
+            .apply(lambda x: datetime.datetime.fromtimestamp(x))
+            .loc[trajectory["realized_pnl"].notnull()],
+            y=trajectory.loc[trajectory["realized_pnl"].notnull(), "realized_pnl"],
             name="PnL",
         ),
         row=2,
@@ -84,8 +88,10 @@ def evaluate_strategy(
     )
     fig.add_trace(
         go.Scatter(
-            x=np.arange(len(trajectory["inventory"])),
-            y=trajectory["inventory"],
+            x=trajectory.index.to_series()
+            .apply(lambda x: datetime.datetime.fromtimestamp(x))
+            .loc[trajectory["inventory"].notnull()],
+            y=trajectory.loc[trajectory["inventory"].notnull(), "inventory"],
             name="Inventory",
         ),
         row=3,

@@ -122,16 +122,21 @@ class RLStrategy:
             # (10, 0, 100, False),  # rsi
         ]
 
-        self.trajectory = {
-            key: []
-            for key in [
-                "actions",
-                "observations",
-                "rewards",
-                "realized_pnl",
-                "inventory",
+        self.trajectory = pd.DataFrame(
+            columns=[
+                key
+                for key in [
+                    "bid_level",
+                    "ask_level",
+                    "observations",
+                    "rewards",
+                    "realized_pnl",
+                    "inventory",
+                    "timestamp",
+                ]
             ]
-        }
+        )
+        self.trajectory.set_index("timestamp", inplace=True)
 
     def place_order(
         self, sim: Sim, action_id: float, receive_ts: float, asks_price, bids_price
@@ -176,7 +181,7 @@ class RLStrategy:
 
         self.model.initialize(
             [x[0] + 2 if x[3] else x[0] for x in self.state_space],
-            len(self.action_dict),  #  + 1, if we want to add a no action
+            len(self.action_dict),
         )
 
         md_list: List[MarketEvent] = []
@@ -194,7 +199,7 @@ class RLStrategy:
         # last order timestamp
         prev_time = -np.inf
         # orders that have not been executed/canceled yet
-        prev_total_pnl = None
+        prev_total_pnl = 0
 
         current_state = self.get_state(best_ask, best_bid, [], [], [])
         prev_state = current_state
@@ -207,10 +212,12 @@ class RLStrategy:
         t1 = datetime.datetime.now().timestamp()
         t2 = t1
 
-        while len(self.trajectory["rewards"]) < count:
+        tick = 0
+        while tick < count:
             # get update from simulator
             t2 = datetime.datetime.now().timestamp()
             receive_ts, updates = sim.tick()
+            tick += 1
 
             if updates is None:
                 break
@@ -220,10 +227,10 @@ class RLStrategy:
                 - datetime.datetime(year=2022, month=10, day=1, hour=2).timestamp()
             )
             print(
+                f"Tick: {tick}/{count}%",
                 f"Elapsed time: {t2 - t1:.2f}s",
-                f"Time: {simulated_time//3600:.2f}h {(simulated_time%3600)//60:.2f}m {simulated_time%60:.2f}s",
-                f"Number of rewards: {len(self.trajectory['rewards'])}",
-                " " * 50,
+                f"Simulated time: {simulated_time//3600:.2f}h {(simulated_time%3600)//60:.2f}m {simulated_time%60:.2f}s",
+                " " * 10,
                 end="\r",
             )
             # save updates
@@ -269,8 +276,40 @@ class RLStrategy:
                             (best_ask + best_bid) / 2
                         )
 
-                    self.trajectory["realized_pnl"].append(self.realized_pnl)
-                    self.trajectory["inventory"].append(self.inventory)
+                    self.trajectory.loc[receive_ts, ["realized_pnl", "inventory"]] = [
+                        self.realized_pnl,
+                        self.inventory,
+                    ]
+
+                    if mode == "train":
+                        reward = (
+                            self.realized_pnl + self.unrealized_pnl - prev_total_pnl
+                        )
+
+                        # penalize the agent for having a position too close to the limits (mean-reverting strategy)
+                        # reward += -1e5 / (
+                        #     1
+                        #     + np.exp(
+                        #         -20
+                        #         * abs(
+                        #             (self.inventory - self.min_position)
+                        #             / (self.max_position - self.min_position)
+                        #             - 0.5
+                        #         )
+                        #         + 5
+                        #     )
+                        # )
+
+                        prev_total_pnl = self.realized_pnl + self.unrealized_pnl
+                        self.trajectory.loc[receive_ts, "rewards"] = reward
+
+                        self.model.update(
+                            self.state_to_index(prev_state),
+                            prev_action,
+                            reward,
+                            self.state_to_index(current_state),
+                            current_action,
+                        )
 
                 else:
                     assert False, "invalid type of update!"
@@ -283,7 +322,8 @@ class RLStrategy:
                 current_state = self.get_state(
                     best_ask, best_bid, sim.price_history, asks_volume, bids_volume
                 )
-                self.trajectory["observations"].append(current_state)
+
+                self.trajectory.loc[receive_ts, "observations"] = str(current_state)
 
                 # choose action
                 prev_action = current_action
@@ -291,42 +331,13 @@ class RLStrategy:
                     self.state_to_index(current_state)
                 )
 
-                self.trajectory["actions"].append(self.action_dict[current_action])
+                self.trajectory.loc[receive_ts, ["bid_level", "ask_level"]] = (
+                    self.action_dict[current_action]
+                )
 
                 self.place_order(
                     sim, current_action, receive_ts, asks_price, bids_price
                 )
-
-                if mode == "train":
-                    if prev_total_pnl is None:
-                        prev_total_pnl = 0
-                    else:
-                        prev_total_pnl = self.realized_pnl + self.unrealized_pnl
-
-                    # TODO: calculate reward and attribute it to good state-action pair
-                    reward = self.realized_pnl + self.unrealized_pnl - prev_total_pnl
-
-                    # penalize the agent for having a position too close to the limits (mean-reverting strategy)
-                    reward += -1e5 / (
-                        1
-                        + np.exp(
-                            100
-                            * abs(
-                                (self.inventory - self.min_position)
-                                / (self.max_position - self.min_position)
-                                - 0.5
-                            )
-                        )
-                    )
-                    self.trajectory["rewards"].append(reward)
-
-                    self.model.update(
-                        self.state_to_index(prev_state),
-                        prev_action,
-                        reward,
-                        self.state_to_index(current_state),
-                        current_action,
-                    )
 
                 prev_time = receive_ts
 
@@ -349,23 +360,29 @@ class RLStrategy:
 
     def reset(self):
 
-        self.inventory = 0
+        if initial_position is None:
+            initial_position = (self.max_position + self.min_position) / 2
+        self.inventory = initial_position
         self.realized_pnl = 0
         self.unrealized_pnl = 0
 
         self.actions_history = []
         self.ongoing_orders = {}
 
-        self.trajectory = {
-            key: []
-            for key in [
-                "actions",
-                "observations",
-                "rewards",
-                "realized_pnl",
-                "inventory",
+        self.trajectory = pd.DataFrame(
+            columns=[
+                key
+                for key in [
+                    "actions",
+                    "observations",
+                    "rewards",
+                    "realized_pnl",
+                    "inventory",
+                    "timestamp",
+                ]
             ]
-        }
+        )
+        self.trajectory.set_index("timestamp", inplace=True)
 
     def state_to_index(self, state_values):
         """
