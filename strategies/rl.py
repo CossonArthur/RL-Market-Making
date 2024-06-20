@@ -363,7 +363,7 @@ class RLStrategy:
                     indices.append(0)
                     continue
                 elif val > self.state_space[i][2]:
-                    indices.append(self.state_space[i][0])
+                    indices.append(self.state_space[i][0] + 1)
                     continue
             else:
                 if val < self.state_space[i][1]:
@@ -377,7 +377,9 @@ class RLStrategy:
             )
 
             # Scale the normalized value to the number of levels and convert to an integer index
-            index = int(normalized_val * (self.state_space[i][0] - 1) + 1)
+            index = int(
+                normalized_val * (self.state_space[i][0] - 1) + self.state_space[i][3]
+            )
             indices.append(index)
 
         return tuple(indices)
