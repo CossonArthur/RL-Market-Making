@@ -122,21 +122,13 @@ class RLStrategy:
             # (10, 0, 100, False),  # rsi
         ]
 
-        self.trajectory = pd.DataFrame(
-            columns=[
-                key
-                for key in [
-                    "bid_level",
-                    "ask_level",
-                    "observations",
-                    "rewards",
-                    "realized_pnl",
-                    "inventory",
-                    "timestamp",
-                ]
-            ]
-        )
-        self.trajectory.set_index("timestamp", inplace=True)
+        self.trajectory = {
+            "actions": [],
+            "observations": [],
+            "rewards": [],
+            "realized_pnl": [],
+            "inventory": [],
+        }
 
     def place_order(
         self, sim: Sim, action_id: float, receive_ts: float, asks_price, bids_price
@@ -163,8 +155,8 @@ class RLStrategy:
     def run(self, sim: Sim, mode: str, count=10) -> Tuple[
         List[OwnTrade],
         List[MarketEvent],
-        List[Union[OwnTrade, MarketEvent]],
         List[Order],
+        dict,
     ]:
         """
         This function runs simulation
@@ -227,7 +219,7 @@ class RLStrategy:
                 - datetime.datetime(year=2022, month=10, day=1, hour=2).timestamp()
             )
             print(
-                f"Elapsed time: {t2 - t1:.2f}s -> {tick/count}% |",
+                f"Elapsed time: {t2 - t1:.2f}s",
                 f"Simulated time: {simulated_time//3600:.2f}h {(simulated_time%3600)//60:.2f}m {simulated_time%60:.2f}s",
                 " " * 10,
                 end="\r",
@@ -275,10 +267,10 @@ class RLStrategy:
                             (best_ask + best_bid) / 2
                         )
 
-                    self.trajectory.loc[receive_ts, ["realized_pnl", "inventory"]] = [
-                        self.realized_pnl,
-                        self.inventory,
-                    ]
+                    self.trajectory["realized_pnl"].append(
+                        (receive_ts, self.realized_pnl)
+                    )
+                    self.trajectory["inventory"].append((receive_ts, self.inventory))
 
                     if mode == "train":
                         reward = (
@@ -300,7 +292,7 @@ class RLStrategy:
                         # )
 
                         prev_total_pnl = self.realized_pnl + self.unrealized_pnl
-                        self.trajectory.loc[receive_ts, "rewards"] = reward
+                        self.trajectory["rewards"].append((receive_ts, reward))
 
                         self.model.update(
                             self.state_to_index(prev_state),
@@ -322,17 +314,14 @@ class RLStrategy:
                     best_ask, best_bid, sim.price_history, asks_volume, bids_volume
                 )
 
-                self.trajectory.loc[receive_ts, "observations"] = str(current_state)
-
+                self.trajectory["observations"].append((receive_ts, current_state))
                 # choose action
                 prev_action = current_action
                 current_action = self.model.choose_action(
                     self.state_to_index(current_state)
                 )
 
-                self.trajectory.loc[receive_ts, ["bid_level", "ask_level"]] = (
-                    self.action_dict[current_action]
-                )
+                self.trajectory["actions"].append((receive_ts, current_action))
 
                 self.place_order(
                     sim, current_action, receive_ts, asks_price, bids_price
@@ -349,6 +338,11 @@ class RLStrategy:
                 self.ongoing_orders.pop(ID)
 
         print(f"Simulation runned for {t2 - t1:.2f}s", " " * 50)
+
+        for key in self.trajectory.keys():
+            self.trajectory[key] = pd.DataFrame(
+                np.array(self.trajectory[key]), columns=["timestamp", key]
+            )
 
         return (
             trade_to_dataframe(trades_list),
@@ -368,20 +362,13 @@ class RLStrategy:
         self.actions_history = []
         self.ongoing_orders = {}
 
-        self.trajectory = pd.DataFrame(
-            columns=[
-                key
-                for key in [
-                    "actions",
-                    "observations",
-                    "rewards",
-                    "realized_pnl",
-                    "inventory",
-                    "timestamp",
-                ]
-            ]
-        )
-        self.trajectory.set_index("timestamp", inplace=True)
+        self.trajectory = {
+            "actions": [],
+            "observations": [],
+            "rewards": [],
+            "realized_pnl": [],
+            "inventory": [],
+        }
 
     def state_to_index(self, state_values):
         """
