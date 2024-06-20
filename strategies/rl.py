@@ -210,8 +210,12 @@ class RLStrategy:
             t2 = datetime.datetime.now().timestamp()
             receive_ts, updates = sim.tick()
 
+            if updates is None:
+                break
+
             simulated_time = (
-                receive_ts - datetime.datetime(year=2022, month=10, day=1).timestamp()
+                receive_ts
+                - datetime.datetime(year=2022, month=10, day=1, hour=2).timestamp()
             )
             print(
                 f"Elapsed time: {t2 - t1:.2f}s",
@@ -220,10 +224,6 @@ class RLStrategy:
                 " " * 50,
                 end="\r",
             )
-
-            if updates is None:
-                break
-
             # save updates
             updates_list += updates
             for update in updates:
@@ -253,7 +253,7 @@ class RLStrategy:
 
                     # impact of the trade on the position and pnl
                     if order_type == "LIMIT" and update.execute == "TRADE":
-                        if update.side == "BID":
+                        if update.side == "sell":
                             self.inventory += update.size
                             self.realized_pnl -= (
                                 (1 + self.maker_fee) * update.price * update.size
@@ -307,11 +307,15 @@ class RLStrategy:
                         prev_coin_pos = self.inventory
 
                     # TODO: calculate reward and attribute it to good state-action pair
-                    reward = (
-                        self.realized_pnl
-                        + self.unrealized_pnl
-                        - prev_total_pnl
-                        - abs(prev_coin_pos)
+                    reward = self.realized_pnl + self.unrealized_pnl - prev_total_pnl
+                    reward += -1000 * (
+                        np.exp(
+                            max(
+                                abs(self.inventory) - self.max_position,
+                                abs(self.min_position - self.inventory),
+                            )
+                        )
+                        - 1
                     )
                     self.trajectory["rewards"].append(reward)
 

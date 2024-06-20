@@ -60,7 +60,7 @@ def evaluate_strategy(
     print(f"Total PnL: {strategy.realized_pnl}")
     print(f"Number of Trades: {len(trades)}")
 
-    fig = make_subplots(rows=3, cols=1, subplot_titles=("PnL", "Inventory"))
+    fig = make_subplots(rows=3, cols=1, subplot_titles=("Price", "PnL", "Inventory"))
 
     fig.add_trace(
         go.Scatter(

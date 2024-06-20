@@ -286,7 +286,7 @@ class Sim:
             executed_price = self.best_bid
             execute = "BOOK"
 
-        if not executed_price is None:
+        if executed_price is not None:
             executed_order = OwnTrade(
                 self.last_order.place_ts,  # when we place the order
                 self.market_event.exchange_ts,  # exchange ts
