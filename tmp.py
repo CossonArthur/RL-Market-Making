@@ -1,6 +1,7 @@
 from environment.env import Sim
-from strategies.rl import QLearning, RLStrategy, evaluate_strategy
+from strategies.rl import QLearning, RLStrategy
 from utils.load_data import load_data
+from utils.evaluate import evaluate_strategy
 
 market_data = load_data()
 
