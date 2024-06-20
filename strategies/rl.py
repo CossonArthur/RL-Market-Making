@@ -227,8 +227,7 @@ class RLStrategy:
                 - datetime.datetime(year=2022, month=10, day=1, hour=2).timestamp()
             )
             print(
-                f"Tick: {tick}/{count}%",
-                f"Elapsed time: {t2 - t1:.2f}s",
+                f"Elapsed time: {t2 - t1:.2f}s -> {tick/count}% |",
                 f"Simulated time: {simulated_time//3600:.2f}h {(simulated_time%3600)//60:.2f}m {simulated_time%60:.2f}s",
                 " " * 10,
                 end="\r",
