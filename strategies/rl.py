@@ -108,12 +108,12 @@ class RLStrategy:
             for j in range(order_book_depth + 1)
         }
 
-        self.state_space = [  # level, min, max for each feature
-            (10, 0, 1),  # inventory ratio
-            (10, -1, 1),  # book imbalance
-            (10, 0, 1),  # spread #  TODO: Define relevant state space
-            (10, 0, 1),  # volatility #  TODO: Define relevant state space
-            (10, 0, 100),  # rsi
+        self.state_space = [  # level, min, max for each feature, bin for extreme values
+            (10, 0, 1, True),  # inventory ratio
+            (3, -1, 1, False),  # book imbalance
+            (10, 0, 1, False),  # spread #  TODO: Define relevant state space
+            (10, 0, 1, False),  # volatility #  TODO: Define relevant state space
+            (10, 0, 100, False),  # rsi
         ]
 
         self.trajectory = {
@@ -171,9 +171,7 @@ class RLStrategy:
         """
 
         self.model.initialize(
-            [
-                x[0] + 2 for x in self.state_space
-            ],  # level + 2 for val beyond max and min
+            [x[0] + 2 if x[3] else x[0] for x in self.state_space],
             len(self.action_dict),  #  + 1, if we want to add a no action
         )
 
@@ -360,12 +358,18 @@ class RLStrategy:
         """
         indices = []
         for i, val in enumerate(state_values):
-            if val < self.state_space[i][1]:
-                indices.append(0)
-                continue
-            elif val > self.state_space[i][2]:
-                indices.append(self.state_space[i][0])
-                continue
+            if self.state_space[i][3]:
+                if self.state_space[i][3] and val < self.state_space[i][1]:
+                    indices.append(0)
+                    continue
+                elif val > self.state_space[i][2]:
+                    indices.append(self.state_space[i][0])
+                    continue
+            else:
+                if val < self.state_space[i][1]:
+                    val = self.state_space[i][1]
+                elif val > self.state_space[i][2]:
+                    val = self.state_space[i][2]
 
             # Normalize the state value to be between 0 and 1
             normalized_val = (val - self.state_space[i][1]) / (
