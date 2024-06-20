@@ -6,6 +6,7 @@ import datetime
 
 from environment.env import OwnTrade, Sim, MarketEvent, Order, update_best_positions
 from utils.features import book_imbalance, RSI, volatility
+from utils.evaluate import trade_to_dataframe, md_to_dataframe
 
 
 class QLearning:
@@ -96,7 +97,7 @@ class RLStrategy:
 
         if initial_position is None:
             initial_position = (max_position + min_position) / 2
-        self.coin_position = initial_position
+        self.inventory = initial_position
         self.realized_pnl = 0
         self.unrealized_pnl = 0
         self.actions_history = []
@@ -116,14 +117,16 @@ class RLStrategy:
             (10, 0, 100, False),  # rsi
         ]
 
-        self.trajectory = {
-            key: []
-            for key in [
+        self.trajectory = pd.DataFrame(
+            columns=[
                 "actions",
                 "observations",
                 "rewards",
-            ]
-        }
+                "realized_pnl",
+                "inventory",
+            ],
+            index="timestamp",
+        )
 
     def place_order(
         self, sim: Sim, action_id: float, receive_ts: float, asks_price, bids_price
@@ -146,7 +149,7 @@ class RLStrategy:
         self.actions_history.append(
             (
                 datetime.datetime.fromtimestamp(receive_ts),
-                self.coin_position,
+                self.inventory,
                 self.action_dict[action_id],
             )
         )
@@ -251,18 +254,21 @@ class RLStrategy:
                     # impact of the trade on the position and pnl
                     if order_type == "LIMIT" and update.execute == "TRADE":
                         if update.side == "BID":
-                            self.coin_position += update.size
+                            self.inventory += update.size
                             self.realized_pnl -= (
                                 (1 + self.maker_fee) * update.price * update.size
                             )
                         else:
-                            self.coin_position -= update.size
+                            self.inventory -= update.size
                             self.realized_pnl += (
                                 (1 - self.maker_fee) * update.price * update.size
                             )
-                        self.unrealized_pnl = self.coin_position * (
+                        self.unrealized_pnl = self.inventory * (
                             (best_ask + best_bid) / 2
                         )
+
+                    self.trajectory["realized_pnl"].append(self.realized_pnl)
+                    self.trajectory["inventory"].append(self.inventory)
 
                 else:
                     assert False, "invalid type of update!"
@@ -298,9 +304,9 @@ class RLStrategy:
                         prev_coin_pos = 0
                     else:
                         prev_total_pnl = self.realized_pnl + self.unrealized_pnl
-                        prev_coin_pos = self.coin_position
+                        prev_coin_pos = self.inventory
 
-                    # TODO: calculate reward
+                    # TODO: calculate reward and attribute it to good state-action pair
                     reward = (
                         self.realized_pnl
                         + self.unrealized_pnl
@@ -329,11 +335,16 @@ class RLStrategy:
 
         print(f"Simulation runned for {t2 - t1:.2f}s", " " * 50)
 
-        return trades_list, md_list, self.actions_history, self.trajectory
+        return (
+            trade_to_dataframe(trades_list),
+            md_to_dataframe(md_list),
+            self.actions_history,
+            self.trajectory,
+        )
 
     def reset(self):
 
-        self.coin_position = 0
+        self.inventory = 0
         self.realized_pnl = 0
         self.unrealized_pnl = 0
 
@@ -346,6 +357,8 @@ class RLStrategy:
                 "actions",
                 "observations",
                 "rewards",
+                "realized_pnl",
+                "inventory",
             ]
         }
 
@@ -387,7 +400,7 @@ class RLStrategy:
     def get_state(
         self, best_ask, best_bid, prices, asks_size, bids_size
     ) -> Tuple[float, float]:
-        inventory_ratio = self.coin_position - self.min_position / (
+        inventory_ratio = self.inventory - self.min_position / (
             self.max_position - self.min_position
         )
         spread = best_ask - best_bid
