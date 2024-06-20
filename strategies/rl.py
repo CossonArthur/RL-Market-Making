@@ -110,11 +110,11 @@ class RLStrategy:
         }
 
         self.state_space = [  # level, min, max for each feature, bin for extreme values
-            (10, 0, 1, True),  # inventory ratio
-            (3, -1, 1, False),  # book imbalance
-            (10, 0, 1, False),  # spread #  TODO: Define relevant state space
-            (10, 0, 1, False),  # volatility #  TODO: Define relevant state space
-            (10, 0, 100, False),  # rsi
+            (3, 0, 1, True),  # inventory ratio
+            # (5, -1, 1, False),  # book imbalance (mostly 0 here)
+            # (10, 0, 1, False),  # spread #  TODO: Define relevant state space
+            # (10, 0, 1, False),  # volatility #  TODO: Define relevant state space
+            # (10, 0, 100, False),  # rsi
         ]
 
         self.trajectory = {
@@ -253,7 +253,7 @@ class RLStrategy:
 
                     # impact of the trade on the position and pnl
                     if order_type == "LIMIT" and update.execute == "TRADE":
-                        if update.side == "sell":
+                        if update.side == "buy":
                             self.inventory += update.size
                             self.realized_pnl -= (
                                 (1 + self.maker_fee) * update.price * update.size
@@ -404,20 +404,20 @@ class RLStrategy:
     def get_state(
         self, best_ask, best_bid, prices, asks_size, bids_size
     ) -> Tuple[float, float]:
-        inventory_ratio = self.inventory - self.min_position / (
+        inventory_ratio = (self.inventory - self.min_position) / (
             self.max_position - self.min_position
         )
+        book_imb = book_imbalance(asks_size, bids_size)
         spread = best_ask - best_bid
         vol = volatility(prices, 300)
         rsi = RSI(prices, 300)
-        book_imb = book_imbalance(asks_size, bids_size)
 
         return (
             inventory_ratio,
-            spread,
-            vol,
-            rsi,
-            book_imb,
+            # book_imb,
+            # spread,
+            # vol,
+            # rsi,
         )
 
     def epsilon_var(self, alpha: float = 1.0, beta: float = 0.5):
