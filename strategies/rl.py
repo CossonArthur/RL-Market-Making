@@ -104,9 +104,14 @@ class RLStrategy:
         self.ongoing_orders = {}
 
         self.action_dict = {  # id : (ask_level, bid_level)
-            i + j: (i, j)
-            for i in range(order_book_depth + 1)
-            for j in range(order_book_depth + 1)
+            i: x
+            for (i, x) in enumerate(
+                [
+                    (i, j)
+                    for i in range(order_book_depth + 1)
+                    for j in range(order_book_depth + 1)
+                ]
+            )
         }
 
         self.state_space = [  # level, min, max for each feature, bin for extreme values
@@ -131,20 +136,16 @@ class RLStrategy:
     def place_order(
         self, sim: Sim, action_id: float, receive_ts: float, asks_price, bids_price
     ):
-        if action_id == -1:
-            return
+        ask_level, bid_level = self.action_dict[action_id]
+        ask_order = sim.place_order(
+            receive_ts, self.trade_size, "sell", asks_price[ask_level]
+        )
+        bid_order = sim.place_order(
+            receive_ts, self.trade_size, "buy", bids_price[bid_level]
+        )
 
-        else:
-            ask_level, bid_level = self.action_dict[action_id]
-            ask_order = sim.place_order(
-                receive_ts, self.trade_size, "sell", asks_price[ask_level]
-            )
-            bid_order = sim.place_order(
-                receive_ts, self.trade_size, "buy", bids_price[bid_level]
-            )
-
-            self.ongoing_orders[bid_order.order_id] = (bid_order, "LIMIT")
-            self.ongoing_orders[ask_order.order_id] = (ask_order, "LIMIT")
+        self.ongoing_orders[bid_order.order_id] = (bid_order, "LIMIT")
+        self.ongoing_orders[ask_order.order_id] = (ask_order, "LIMIT")
 
         self.actions_history.append(
             (
@@ -204,6 +205,7 @@ class RLStrategy:
             count = 1e8
 
         t1 = datetime.datetime.now().timestamp()
+        t2 = t1
 
         while len(self.trajectory["rewards"]) < count:
             # get update from simulator
@@ -274,7 +276,7 @@ class RLStrategy:
                     assert False, "invalid type of update!"
 
             # if the delay has passed, place an order
-            if receive_ts - prev_time >= self.delay:
+            if receive_ts - prev_time >= self.delay and len(self.ongoing_orders) == 0:
 
                 # update state
                 prev_state = current_state
@@ -289,10 +291,7 @@ class RLStrategy:
                     self.state_to_index(current_state)
                 )
 
-                self.trajectory["actions"].append(
-                    self.action_dict[current_action]
-                    #   if current_action != 0 else None
-                )
+                self.trajectory["actions"].append(self.action_dict[current_action])
 
                 self.place_order(
                     sim, current_action, receive_ts, asks_price, bids_price
@@ -301,21 +300,23 @@ class RLStrategy:
                 if mode == "train":
                     if prev_total_pnl is None:
                         prev_total_pnl = 0
-                        prev_coin_pos = 0
                     else:
                         prev_total_pnl = self.realized_pnl + self.unrealized_pnl
-                        prev_coin_pos = self.inventory
 
                     # TODO: calculate reward and attribute it to good state-action pair
                     reward = self.realized_pnl + self.unrealized_pnl - prev_total_pnl
-                    reward += -1000 * (
-                        np.exp(
-                            max(
-                                abs(self.inventory) - self.max_position,
-                                abs(self.min_position - self.inventory),
+
+                    # penalize the agent for having a position too close to the limits (mean-reverting strategy)
+                    reward += -1e5 / (
+                        1
+                        + np.exp(
+                            100
+                            * abs(
+                                (self.inventory - self.min_position)
+                                / (self.max_position - self.min_position)
+                                - 0.5
                             )
                         )
-                        - 1
                     )
                     self.trajectory["rewards"].append(reward)
 
