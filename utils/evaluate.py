@@ -5,7 +5,6 @@ import pandas as pd
 from typing import List
 
 from environment.env import OwnTrade, MarketEvent, update_best_positions
-from strategies.rl import RLStrategy
 
 
 def trade_to_dataframe(trades_list: List[OwnTrade]) -> pd.DataFrame:
@@ -53,7 +52,7 @@ def md_to_dataframe(md_list: List[MarketEvent]) -> pd.DataFrame:
 
 
 # TODO: Add a function to evaluate the strategy graph etc
-def evaluate_strategy(strategy: RLStrategy, trades: List[OwnTrade], trajectory: dict):
+def evaluate_strategy(strategy, trades: List[OwnTrade], trajectory: dict):
 
     print(f"Total PnL: {strategy.realized_pnl}")
     print(f"Number of Trades: {len(trades)}")

@@ -117,16 +117,13 @@ class RLStrategy:
             (10, 0, 100, False),  # rsi
         ]
 
-        self.trajectory = pd.DataFrame(
-            columns=[
+        self.trajectory = {key: [] for key in 
                 "actions",
                 "observations",
                 "rewards",
                 "realized_pnl",
                 "inventory",
-            ],
-            index="timestamp",
-        )
+            }
 
     def place_order(
         self, sim: Sim, action_id: float, receive_ts: float, asks_price, bids_price
