@@ -1,5 +1,3 @@
-import numpy as np
-import pandas as pd
 from environment.env import Sim
 from strategies.rl import QLearning, RLStrategy, evaluate_strategy
 from utils.load_data import load_data
@@ -31,7 +29,7 @@ strategy = RLStrategy(
 sim = Sim(market_data, 1e-4, 1e-4)
 
 # Train and evaluate the strategy
-evaluate_strategy(strategy, sim, "train", 500000)
+evaluate_strategy(strategy, sim, "train", 100000)
 
 
 # # Save Q-table

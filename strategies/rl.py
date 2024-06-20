@@ -265,11 +265,6 @@ class RLStrategy:
                         self.unrealized_pnl = self.coin_position * (
                             (best_ask + best_bid) / 2
                         )
-                        print(
-                            f"Coin position: {self.coin_position}",
-                            f"Realized PnL: {self.realized_pnl}",
-                            f"Unrealized PnL: {self.unrealized_pnl}",
-                        )
 
                 else:
                     assert False, "invalid type of update!"
@@ -403,6 +398,7 @@ class RLStrategy:
         )
 
     def epsilon_var(self, alpha: float = 1.0, beta: float = 0.5):
+        # TODO: Implement the epsilon variation function
         r_t = get_actual_reward()
         hat_r_t = get_expected_reward()
         Delta_t = r_t - hat_r_t
