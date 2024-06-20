@@ -2,6 +2,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import numpy as np
 import pandas as pd
+import datetime
 from typing import List
 
 from environment.env import OwnTrade, MarketEvent, update_best_positions
@@ -52,18 +53,22 @@ def md_to_dataframe(md_list: List[MarketEvent]) -> pd.DataFrame:
 
 
 # TODO: Add a function to evaluate the strategy graph etc
-def evaluate_strategy(strategy, trades: List[OwnTrade], trajectory: dict):
+def evaluate_strategy(
+    strategy, trades: pd.DataFrame, trajectory: dict, md_updates: pd.DataFrame
+):
 
     print(f"Total PnL: {strategy.realized_pnl}")
     print(f"Number of Trades: {len(trades)}")
 
-    fig = make_subplots(rows=2, cols=1, subplot_titles=("PnL", "Inventory"))
+    fig = make_subplots(rows=3, cols=1, subplot_titles=("PnL", "Inventory"))
 
     fig.add_trace(
         go.Scatter(
-            x=np.arange(len(trajectory["realized_pnl"])),
-            y=trajectory["realized_pnl"],
-            name="PnL",
+            x=md_updates["receive_ts"].apply(
+                lambda x: datetime.datetime.fromtimestamp(x)
+            ),
+            y=(md_updates["bid_price"] + md_updates["ask_price"]) / 2,
+            name="Price",
         ),
         row=1,
         col=1,
@@ -74,7 +79,7 @@ def evaluate_strategy(strategy, trades: List[OwnTrade], trajectory: dict):
             y=trajectory["realized_pnl"],
             name="PnL",
         ),
-        row=1,
+        row=2,
         col=1,
     )
     fig.add_trace(
@@ -83,7 +88,7 @@ def evaluate_strategy(strategy, trades: List[OwnTrade], trajectory: dict):
             y=trajectory["inventory"],
             name="Inventory",
         ),
-        row=2,
+        row=3,
         col=1,
     )
     fig.show()

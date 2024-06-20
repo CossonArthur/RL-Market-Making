@@ -32,7 +32,7 @@ sim = Sim(market_data, 1e-4, 1e-4)
 
 # Train and evaluate the strategy
 trades, md_updates, orders, trajectory = strategy.run(sim, "train", 10000)
-evaluate_strategy(strategy, trades, trajectory)
+evaluate_strategy(strategy, trades, trajectory, md_updates)
 
 
 # # Save Q-table
