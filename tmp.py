@@ -6,6 +6,7 @@ from utils.evaluate import evaluate_strategy
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import datetime
 
 market_data = load_data()
 
@@ -17,7 +18,7 @@ min_position = -0.1  # Example: minimum position size
 max_position = 0.1  # Example: maximum position size
 delay = 5e-3
 trade_size = 0.01
-maker_fee = -0.00004
+maker_fee = -0.0000  # 4
 
 # Initialize strategy
 strategy = RLStrategy(
@@ -35,15 +36,18 @@ sim = Real_Data_Env(market_data, 1e-4, 1e-4)
 
 
 # Train and evaluate the strategy
-trades, md_updates, orders, trajectory = strategy.run(sim, "train", 500000)
-evaluate_strategy(strategy, trades, trajectory, md_updates)
+# trades, md_updates, orders, trajectory = strategy.run(sim, "train", 500000)
+# evaluate_strategy(strategy, trades, trajectory, md_updates)
 
-# # Save Q-table
-# strategy.save_q_table("q_table.npy")
+# # # Save Q-table
+# time = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+# strategy.save_q_table(f"model/q_table_{time}.npy")
 
 # # Load Q-table for evaluation or further training
-# strategy.load_q_table("q_table.npy")
+# strategy.load_q_table(f"model/q_table_{time}.npy")
+
+strategy.load_q_table(f"model/penalisation_Qlearning_good.npy")
 
 # # Evaluate in test mode
-# mode = "test"
-# total_pnl, num_trades = evaluate_strategy(strategy, sim, mode)
+trades, md_updates, orders, trajectory = strategy.run(sim, "test", 500000)
+evaluate_strategy(strategy, trades, trajectory, md_updates)

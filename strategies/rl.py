@@ -114,7 +114,6 @@ class RLStrategy:
             maker_fee(float): maker fee
             order_book_depth(int): order book depth to be considered for action space
         """
-        self.model = model
 
         self.maker_fee = maker_fee
         self.trade_size = trade_size
@@ -158,6 +157,12 @@ class RLStrategy:
             "realized_pnl": [],
             "inventory": [],
         }
+
+        self.model = model
+        self.model.initialize(
+            [x[0] + 2 if x[3] else x[0] for x in self.state_space],
+            len(self.action_dict),
+        )
 
     def place_order(
         self,
@@ -204,11 +209,6 @@ class RLStrategy:
             received by strategy(market data and information about executed trades)
             all_orders(List[Order]): list of all placed orders
         """
-
-        self.model.initialize(
-            [x[0] + 2 if x[3] else x[0] for x in self.state_space],
-            len(self.action_dict),
-        )
 
         md_list: List[MarketEvent] = []
         trades_list: List[OwnTrade] = []
@@ -396,6 +396,8 @@ class RLStrategy:
 
         df_trajectory = {}
         for key in self.trajectory.keys():
+            if len(self.trajectory[key]) == 0:
+                continue
             df_trajectory[key] = pd.DataFrame(
                 np.array(self.trajectory[key]), columns=["timestamp", key]
             )
