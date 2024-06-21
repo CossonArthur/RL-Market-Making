@@ -57,7 +57,9 @@ def evaluate_strategy(
     strategy, trades: pd.DataFrame, trajectory: dict, md_updates: pd.DataFrame
 ):
 
-    print(f"Total PnL: {strategy.realized_pnl}")
+    print(
+        f"Total PnL: {strategy.realized_pnl + strategy.inventory * (md_updates.iloc[-1]['bid_price'] + md_updates.iloc[-1]['ask_price']) / 2}"
+    )
     print(f"Number of Trades: {len(trades)}")
 
     fig = make_subplots(

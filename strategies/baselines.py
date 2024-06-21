@@ -2,11 +2,18 @@ from typing import List, Optional, Tuple, Union, Dict
 
 import numpy as np
 import pandas as pd
+import datetime
 
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from simulator.simulator import MdUpdate, Order, OwnTrade, Sim, update_best_positions
+from environment.env import (
+    OwnTrade,
+    Real_Data_Env,
+    MarketEvent,
+    Order,
+    update_best_positions,
+)
 
 
 class BestPosStrategy:
@@ -35,26 +42,27 @@ class BestPosStrategy:
         self.trade_size = trade_size
         self.coin_position = 0
 
-    def run(
-        self, sim: Sim
-    ) -> Tuple[
-        List[OwnTrade], List[MdUpdate], List[Union[OwnTrade, MdUpdate]], List[Order]
+    def run(self, sim: Real_Data_Env) -> Tuple[
+        List[OwnTrade],
+        List[MarketEvent],
+        List[Union[OwnTrade, MarketEvent]],
+        List[Order],
     ]:
         """
         This function runs simulation
 
         Args:
-            sim(Sim): simulator
+            sim(Real_Data_Env): simulator
         Returns:
             trades_list(List[OwnTrade]): list of our executed trades
-            md_list(List[MdUpdate]): list of market data received by strategy
-            updates_list( List[ Union[OwnTrade, MdUpdate] ] ): list of all updates
+            md_list(List[MarketEvent]): list of market data received by strategy
+            updates_list( List[ Union[OwnTrade, MarketEvent] ] ): list of all updates
             received by strategy(market data and information about executed trades)
             all_orders(List[Order]): list of all placed orders
         """
 
         # market data list
-        md_list: List[MdUpdate] = []
+        market_event_list: List[MarketEvent] = []
         # executed trades list
         trades_list: List[OwnTrade] = []
         # all updates list
@@ -68,34 +76,51 @@ class BestPosStrategy:
         # orders that have not been executed/canceled yet
         ongoing_orders: Dict[int, Order] = {}
         all_orders = []
+
+        t1 = datetime.datetime.now().timestamp()
+        t1 = t2
+
         while True:
+            t2 = datetime.datetime.now().timestamp()
             # get update from simulator
             receive_ts, updates = sim.tick()
             if updates is None:
                 break
+
+            simulated_time = (
+                receive_ts
+                - datetime.datetime(year=2022, month=10, day=1, hour=2).timestamp()
+            )
+            print(
+                f"Elapsed time: {t2 - t1:.2f}s",
+                f"Simulated time: {simulated_time//3600:.2f}h {(simulated_time%3600)//60:.2f}m {simulated_time%60:.2f}s",
+                " " * 10,
+                end="\r",
+            )
+
             # save updates
             updates_list += updates
             for update in updates:
                 # update best position
-                if isinstance(update, MdUpdate):
+                if isinstance(update, MarketEvent):
                     best_bid, best_ask = update_best_positions(
                         best_bid, best_ask, update
                     )
-                    md_list.append(update)
+                    market_event_list.append(update)
                 elif isinstance(update, OwnTrade):
                     trades_list.append(update)
                     # delete executed trades from the dict
                     if update.order_id in ongoing_orders.keys():
                         ongoing_orders.pop(update.order_id)
 
-                    if update.side == "BID":
+                    if update.side == "buy":
                         self.coin_position += update.size
                     else:
                         self.coin_position -= update.size
                 else:
                     assert False, "invalid type of update!"
 
-            if receive_ts - prev_time >= self.delay:
+            if receive_ts - prev_time >= self.delay and len(ongoing_orders) == 0:
                 prev_time = receive_ts
                 # place order
                 if (
@@ -134,7 +159,9 @@ class BestPosStrategy:
             for ID in to_cancel:
                 ongoing_orders.pop(ID)
 
-        return trades_list, md_list, updates_list, all_orders
+        print(f"Simulation runned for {t2 - t1:.2f}s", " " * 50)
+
+        return trades_list, market_event_list, updates_list, all_orders
 
 
 class StoikovStrategy:
@@ -184,26 +211,27 @@ class StoikovStrategy:
             "mid_price": [],
         }
 
-    def run(
-        self, sim: Sim
-    ) -> Tuple[
-        List[OwnTrade], List[MdUpdate], List[Union[OwnTrade, MdUpdate]], List[Order]
+    def run(self, sim: Real_Data_Env) -> Tuple[
+        List[OwnTrade],
+        List[MarketEvent],
+        List[Union[OwnTrade, MarketEvent]],
+        List[Order],
     ]:
         """
         This function runs simulation
 
         Args:
-            sim(Sim): simulator
+            sim(Real_Data_Env): simulator
         Returns:
             trades_list(List[OwnTrade]): list of our executed trades
-            md_list(List[MdUpdate]): list of market data received by strategy
-            updates_list( List[ Union[OwnTrade, MdUpdate] ] ): list of all updates
+            md_list(List[MarketEvent]): list of market data received by strategy
+            updates_list( List[ Union[OwnTrade, MarketEvent] ] ): list of all updates
             received by strategy(market data and information about executed trades)
             all_orders(List[Orted]): list of all placed orders
         """
 
         # market data list
-        md_list: List[MdUpdate] = []
+        md_list: List[MarketEvent] = []
         # executed trades list
         trades_list: List[OwnTrade] = []
         # all updates list
@@ -226,7 +254,7 @@ class StoikovStrategy:
             updates_list += updates
             for update in updates:
                 # update best position
-                if isinstance(update, MdUpdate):
+                if isinstance(update, MarketEvent):
                     best_bid, best_ask = update_best_positions(
                         best_bid, best_ask, update
                     )
@@ -422,20 +450,21 @@ class StoikovStrategy_old:
             2 / self.risk_preference
         ) * np.log(1 + self.risk_preference / self.k)
 
-    def run(
-        self, sim: Sim
-    ) -> Tuple[
-        List[OwnTrade], List[MdUpdate], List[Union[OwnTrade, MdUpdate]], List[Order]
+    def run(self, sim: Real_Data_Env) -> Tuple[
+        List[OwnTrade],
+        List[MarketEvent],
+        List[Union[OwnTrade, MarketEvent]],
+        List[Order],
     ]:
         """
         This function runs simulation
 
         Args:
-            sim(Sim): simulator
+            sim(Real_Data_Env): simulator
         Returns:
             trades_list(List[OwnTrade]): list of our executed trades
-            md_list(List[MdUpdate]): list of market data received by strategy
-            updates_list( List[ Union[OwnTrade, MdUpdate] ] ): list of all updates
+            md_list(List[MarketEvent]): list of market data received by strategy
+            updates_list( List[ Union[OwnTrade, MarketEvent] ] ): list of all updates
             received by strategy(market data and information about executed trades)
             quotes_history: list of tuples(time, coin_pos, bid, mid, reservation, ask)
         """
@@ -458,7 +487,7 @@ class StoikovStrategy_old:
             self.updates_list += updates
             for update in updates:
                 # update best position
-                if isinstance(update, MdUpdate):
+                if isinstance(update, MarketEvent):
                     if update.orderbook is not None:
                         best_bid, best_ask = update_best_positions(update)
                     self.current_midprice = (best_bid + best_ask) / 2
@@ -619,20 +648,21 @@ class LimitMarketStrategy:
         # implement normalization
         return self.coin_position, self.current_spread
 
-    def run(
-        self, sim: Sim
-    ) -> Tuple[
-        List[OwnTrade], List[MdUpdate], List[Union[OwnTrade, MdUpdate]], List[Order]
+    def run(self, sim: Real_Data_Env) -> Tuple[
+        List[OwnTrade],
+        List[MarketEvent],
+        List[Union[OwnTrade, MarketEvent]],
+        List[Order],
     ]:
         """
         This function runs simulation
 
         Args:
-            sim(Sim): simulator
+            sim(Real_Data_Env): simulator
         Returns:
             trades_list(List[OwnTrade]): list of our executed trades
-            md_list(List[MdUpdate]): list of market data received by strategy
-            updates_list( List[ Union[OwnTrade, MdUpdate] ] ): list of all updates
+            md_list(List[MarketEvent]): list of market data received by strategy
+            updates_list( List[ Union[OwnTrade, MarketEvent] ] ): list of all updates
             received by strategy(market data and information about executed trades)
             actions_history: list of tuples(time, coin_pos, spread, action)
         """
@@ -654,7 +684,7 @@ class LimitMarketStrategy:
             self.updates_list += updates
             for update in updates:
                 # update best position
-                if isinstance(update, MdUpdate):
+                if isinstance(update, MarketEvent):
                     best_bid, best_ask = update_best_positions(
                         best_bid, best_ask, update
                     )
@@ -814,26 +844,27 @@ class StoikovStrategyGeneralizedSingleAsset:
         fig.show()
         return fig, df
 
-    def run(
-        self, sim: Sim
-    ) -> Tuple[
-        List[OwnTrade], List[MdUpdate], List[Union[OwnTrade, MdUpdate]], List[Order]
+    def run(self, sim: Real_Data_Env) -> Tuple[
+        List[OwnTrade],
+        List[MarketEvent],
+        List[Union[OwnTrade, MarketEvent]],
+        List[Order],
     ]:
         """
         This function runs simulation
 
         Args:
-            sim(Sim): simulator
+            sim(Real_Data_Env): simulator
         Returns:
             trades_list(List[OwnTrade]): list of our executed trades
-            md_list(List[MdUpdate]): list of market data received by strategy
-            updates_list( List[ Union[OwnTrade, MdUpdate] ] ): list of all updates
+            md_list(List[MarketEvent]): list of market data received by strategy
+            updates_list( List[ Union[OwnTrade, MarketEvent] ] ): list of all updates
             received by strategy(market data and information about executed trades)
             all_orders(List[Orted]): list of all placed orders
         """
 
         # market data list
-        md_list: List[MdUpdate] = []
+        md_list: List[MarketEvent] = []
         # executed trades list
         trades_list: List[OwnTrade] = []
         # all updates list
@@ -856,7 +887,7 @@ class StoikovStrategyGeneralizedSingleAsset:
             updates_list += updates
             for update in updates:
                 # update best position
-                if isinstance(update, MdUpdate):
+                if isinstance(update, MarketEvent):
                     best_bid, best_ask = update_best_positions(
                         best_bid, best_ask, update
                     )

@@ -100,7 +100,7 @@ class RLStrategy:
         hold_time: Optional[float] = None,
         trade_size: float = 0.001,
         maker_fee: float = -0.00004,
-        order_book_depth: int = 6,
+        order_book_depth: int = 10,
     ) -> None:
         """
         Args:
@@ -248,8 +248,9 @@ class RLStrategy:
             if updates is None:
                 break
 
-            if tick % 50000 == 0:
+            if datetime.datetime.now().timestamp() - t2 > 10:
                 t2 = datetime.datetime.now().timestamp()
+
                 simulated_time = (
                     receive_ts
                     - datetime.datetime(year=2022, month=10, day=1, hour=2).timestamp()
@@ -392,7 +393,8 @@ class RLStrategy:
             for ID in to_cancel:
                 self.ongoing_orders.pop(ID)
 
-        print(f"Simulation runned for {t2 - t1:.2f}s", " " * 50)
+        print(" " * 200, end="\r")
+        print(f"Simulation runned for {datetime.datetime.now().timestamp() - t1:.2f}s")
 
         df_trajectory = {}
         for key in self.trajectory.keys():
