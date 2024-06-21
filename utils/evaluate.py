@@ -77,8 +77,7 @@ def evaluate_strategy(
     )
     fig.add_trace(
         go.Scatter(
-            x=trajectory["realized_pnl"]
-            .index.to_series()
+            x=trajectory["realized_pnl"]["timestamp"]
             .apply(lambda x: datetime.datetime.fromtimestamp(x))
             .loc[trajectory["realized_pnl"]["realized_pnl"].notnull()],
             y=trajectory["realized_pnl"].loc[
@@ -91,8 +90,7 @@ def evaluate_strategy(
     )
     fig.add_trace(
         go.Scatter(
-            x=trajectory["inventory"]
-            .index.to_series()
+            x=trajectory["inventory"]["timestamp"]
             .apply(lambda x: datetime.datetime.fromtimestamp(x))
             .loc[trajectory["inventory"]["inventory"].notnull()],
             y=trajectory["inventory"].loc[
