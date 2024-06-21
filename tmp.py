@@ -34,7 +34,6 @@ sim = Sim(market_data, 1e-4, 1e-4)
 trades, md_updates, orders, trajectory = strategy.run(sim, "train", 500000)
 evaluate_strategy(strategy, trades, trajectory, md_updates)
 
-
 # # Save Q-table
 # strategy.save_q_table("q_table.npy")
 

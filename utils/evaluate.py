@@ -77,10 +77,13 @@ def evaluate_strategy(
     )
     fig.add_trace(
         go.Scatter(
-            x=trajectory.index.to_series()
+            x=trajectory["realized_pnl"]
+            .index.to_series()
             .apply(lambda x: datetime.datetime.fromtimestamp(x))
-            .loc[trajectory["realized_pnl"].notnull()],
-            y=trajectory.loc[trajectory["realized_pnl"].notnull(), "realized_pnl"],
+            .loc[trajectory["realized_pnl"]["realized_pnl"].notnull()],
+            y=trajectory["realized_pnl"].loc[
+                trajectory["realized_pnl"]["realized_pnl"].notnull(), "realized_pnl"
+            ],
             name="PnL",
         ),
         row=2,
@@ -88,10 +91,13 @@ def evaluate_strategy(
     )
     fig.add_trace(
         go.Scatter(
-            x=trajectory.index.to_series()
+            x=trajectory["inventory"]
+            .index.to_series()
             .apply(lambda x: datetime.datetime.fromtimestamp(x))
-            .loc[trajectory["inventory"].notnull()],
-            y=trajectory.loc[trajectory["inventory"].notnull(), "inventory"],
+            .loc[trajectory["inventory"]["inventory"].notnull()],
+            y=trajectory["inventory"].loc[
+                trajectory["inventory"]["inventory"].notnull(), "inventory"
+            ],
             name="Inventory",
         ),
         row=3,

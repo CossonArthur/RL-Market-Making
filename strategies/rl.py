@@ -124,7 +124,6 @@ class RLStrategy:
 
         self.trajectory = {
             "actions": [],
-            "observations": [],
             "rewards": [],
             "realized_pnl": [],
             "inventory": [],
@@ -314,7 +313,6 @@ class RLStrategy:
                     best_ask, best_bid, sim.price_history, asks_volume, bids_volume
                 )
 
-                self.trajectory["observations"].append((receive_ts, current_state))
                 # choose action
                 prev_action = current_action
                 current_action = self.model.choose_action(
@@ -364,7 +362,6 @@ class RLStrategy:
 
         self.trajectory = {
             "actions": [],
-            "observations": [],
             "rewards": [],
             "realized_pnl": [],
             "inventory": [],
