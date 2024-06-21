@@ -4,6 +4,13 @@ import numpy as np
 from typing import List
 
 
+def inventory_ratio(inventory: float, min_inventory: float, max_inventory: float):
+    if max_inventory - min_inventory == 0:
+        return (inventory - min_inventory) / 1e-12
+
+    return (inventory - min_inventory) / (max_inventory - min_inventory)
+
+
 def volatility(price: List, n: int = 300, m: int = 20) -> float:
     """
     Calculate the volatility of a price series.

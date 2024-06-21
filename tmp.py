@@ -9,8 +9,8 @@ market_data = load_data()
 q_learning = QLearning()
 
 
-min_position = 2  # Example: minimum position size
-max_position = 10  # Example: maximum position size
+min_position = -2  # Example: minimum position size
+max_position = 2  # Example: maximum position size
 delay = 5e-3
 trade_size = 0.001
 maker_fee = -0.00004

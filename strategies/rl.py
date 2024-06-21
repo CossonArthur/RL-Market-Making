@@ -5,7 +5,7 @@ import pandas as pd
 import datetime
 
 from environment.env import OwnTrade, Sim, MarketEvent, Order, update_best_positions
-from utils.features import book_imbalance, RSI, volatility
+from utils.features import book_imbalance, RSI, volatility, inventory_ratio
 from utils.evaluate import trade_to_dataframe, md_to_dataframe
 
 
@@ -277,18 +277,12 @@ class RLStrategy:
                         )
 
                         # penalize the agent for having a position too close to the limits (mean-reverting strategy)
-                        # reward += -1e5 / (
-                        #     1
-                        #     + np.exp(
-                        #         -20
-                        #         * abs(
-                        #             (self.inventory - self.min_position)
-                        #             / (self.max_position - self.min_position)
-                        #             - 0.5
-                        #         )
-                        #         + 5
-                        #     )
-                        # )
+                        reward += -1e5 * abs(
+                            inventory_ratio(
+                                self.inventory, self.min_position, self.max_position
+                            )
+                            - 0.5
+                        )
 
                         prev_total_pnl = self.realized_pnl + self.unrealized_pnl
                         self.trajectory["rewards"].append((receive_ts, reward))
@@ -405,8 +399,8 @@ class RLStrategy:
     def get_state(
         self, best_ask, best_bid, prices, asks_size, bids_size
     ) -> Tuple[float, float]:
-        inventory_ratio = (self.inventory - self.min_position) / (
-            self.max_position - self.min_position
+        inv_ratio = inventory_ratio(
+            self.inventory, self.min_position, self.max_position
         )
         book_imb = book_imbalance(asks_size, bids_size)
         spread = best_ask - best_bid
@@ -414,7 +408,7 @@ class RLStrategy:
         rsi = RSI(prices, 300)
 
         return (
-            inventory_ratio,
+            inv_ratio,
             # book_imb,
             # spread,
             # vol,
