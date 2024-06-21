@@ -24,7 +24,7 @@ def load_book(max_depth=19):
     books["origin_time"] = books["origin_time"].apply(lambda x: x.timestamp())
 
     # drop 1 out of 2 rows to reduce the size of the data
-    books = books[::2]
+    # books = books[::2]
 
     # check for missing values in the data
     print("-" * 50 + "\n", "Missing values for book : ", books.isnull().sum().sum())
@@ -66,7 +66,7 @@ def load_trades():
     trades = trades[["origin_time", "received_time", "side", "price", "quantity"]]
 
     # drop 3 out of 4 rows to reduce the size of the data
-    trades = trades[::4]
+    # trades = trades[::4]
 
     trades["received_time"] = trades["received_time"].apply(lambda x: x.timestamp())
     trades["origin_time"] = trades["origin_time"].apply(lambda x: x.timestamp())

@@ -16,9 +16,9 @@ q_learning = QLearning()
 
 min_position = -0.1  # Example: minimum position size
 max_position = 0.1  # Example: maximum position size
-delay = 5e-3
+delay = 5e-2
 trade_size = 0.01
-maker_fee = -0.0000  # 4
+maker_fee = 0  # -0.00004
 
 # Initialize strategy
 strategy = RLStrategy(
@@ -36,18 +36,22 @@ sim = Real_Data_Env(market_data, 1e-4, 1e-4)
 
 
 # Train and evaluate the strategy
-# trades, md_updates, orders, trajectory = strategy.run(sim, "train", 500000)
-# evaluate_strategy(strategy, trades, trajectory, md_updates)
+trades, md_updates, orders, trajectory = strategy.run(sim, "train", 500000)
+evaluate_strategy(strategy, trades, trajectory, md_updates)
 
 # # # Save Q-table
-# time = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-# strategy.save_q_table(f"model/q_table_{time}.npy")
+time = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+strategy.save_q_table(f"model/q_table_{time}.npy")
 
 # # Load Q-table for evaluation or further training
 # strategy.load_q_table(f"model/q_table_{time}.npy")
 
-strategy.load_q_table(f"model/penalisation_Qlearning_good.npy")
+# strategy.load_q_table("model/penalisation_Qlearning_good.npy")
 
-# # Evaluate in test mode
-trades, md_updates, orders, trajectory = strategy.run(sim, "test", 500000)
+# # # Evaluate in test mode
+trades2, md_updates2, orders2, trajectory = strategy.run(sim, "test", 5000000)
+
+trades = pd.concat([trades, trades2])
+md_updates = pd.concat([md_updates, md_updates2])
+
 evaluate_strategy(strategy, trades, trajectory, md_updates)

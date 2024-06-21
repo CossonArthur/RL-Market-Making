@@ -11,32 +11,20 @@ def inventory_ratio(inventory: float, min_inventory: float, max_inventory: float
     return (inventory - min_inventory) / (max_inventory - min_inventory)
 
 
-def volatility(price: List, n: int = 300, m: int = 20) -> float:
+def volatility(price: List, n: int = 300) -> float:
     """
     Calculate the volatility of a price series.
-    Using the formulat of Patel, Y. "Optimizing market making using multi-agent reinforcement learning"
 
     Args:
     price (List): Price series.
-    n (int): Relative starting point for the EMA from the end
-    m (int): Relative ending point for the EMA from the end
+    n (int): Number of periods for the moving average.
     """
+    # TODO : fix this
 
-    def EMA(price: pd.DataFrame, n: int = 300, m: int = 0) -> float:
-        """
-        Calculate the Exponential Moving Average (EMA) of a price serie as in Patel, Y. "Optimizing market making using multi-agent reinforcement learning"
-        """
+    if len(price) < n + 1:
+        return 0
 
-        assert n > m, "n should be less than m"
-
-        if len(price) < n + 1 or len(price) < m + 1:
-            return 1e-9
-
-        return 2 * price[-1 - m] / (n + 1) + sum(price[-n - 1 : -1 - m]) / n * (
-            100 - 2 / (n + 1)
-        )
-
-    return (EMA(price, n, 0) - EMA(price, n, m)) / EMA(price, n, m)
+    return np.std(np.diff(price[-n:]))
 
 
 def RSI(price: List, n: int = 300) -> float:
@@ -87,10 +75,11 @@ def book_imbalance(asks_volume, bids_volume) -> float:
     asks_volume (List): List of ask prices and sizes.
     bids_volume (List): List of bid prices and sizes.
     """
+
     bids_size = sum(bids_volume)
     asks_size = sum(asks_volume)
 
     if asks_size + bids_size == 0:
-        return 0.0
+        return 0
 
     return (asks_size - bids_size) / (asks_size + bids_size)

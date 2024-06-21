@@ -145,7 +145,7 @@ class RLStrategy:
 
         self.state_space = [  # level, min, max for each feature, bin for extreme values
             (8, 0, 1, True),  # inventory ratio
-            # (5, -1, 1, False),  # book imbalance (mostly 0 here)
+            (10, -1, 1, False),  # book imbalance (mostly 0 here)
             # (10, 0, 1, False),  # spread #  TODO: Define relevant state space
             # (10, 0, 1, False),  # volatility #  TODO: Define relevant state space
             (10, 0, 100, False),  # rsi
@@ -232,9 +232,6 @@ class RLStrategy:
         current_action = None
         prev_action = None
         reward = 0
-
-        if mode != "train":
-            count = 1e8
 
         t1 = datetime.datetime.now().timestamp()
         t2 = t1
@@ -475,7 +472,7 @@ class RLStrategy:
 
         return (
             inv_ratio,
-            # book_imb,
+            book_imb,
             # spread,
             # vol,
             rsi,

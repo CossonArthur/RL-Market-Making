@@ -3,6 +3,8 @@ import datetime
 import numpy as np
 import matplotlib.pyplot as plt
 
+from utils.features import inventory_ratio, volatility, RSI, book_imbalance
+
 lakeapi.use_sample_data(anonymous_access=True)
 
 books = lakeapi.load_data(
@@ -14,6 +16,9 @@ books = lakeapi.load_data(
 )
 
 books["mid_price"] = (books["ask_0_price"] + books["bid_0_price"]) / 2
+
+
+# Book Imbalance
 
 asks_size = books.filter(regex="ask_[0-9]+_size")
 bids_size = books.filter(regex="bid_[0-9]+_size")
@@ -55,3 +60,14 @@ for target in ["target_100", "target_1000", "target_10000"]:
 
 plt.scatter(["target_100", "target_1000", "target_10000"], R2)
 plt.title("R2 for different targets vs imb")
+
+
+# spread
+books["spread"] = books["ask_0_price"] - books["bid_0_price"]
+books["spread"].plot(title="spread")
+
+# RSI
+
+
+# Volatility
+books["volatility"] = volatility(books["mid_price"].values)
