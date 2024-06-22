@@ -20,7 +20,7 @@ class QLearning:
         self,
         alpha: float = 0.5,
         gamma: float = 0.99,
-        discount_alpha: float = 0.99999,
+        discount_alpha: float = 0.9999,
     ):
         self.alpha = alpha
         self.gamma = gamma
@@ -59,7 +59,7 @@ class SARSA:
         self,
         alpha: float = 0.5,
         gamma: float = 0.99,
-        discount_alpha: float = 0.99999,
+        discount_alpha: float = 0.9999,
     ):
         self.alpha = alpha
         self.gamma = gamma
@@ -160,8 +160,7 @@ class RLStrategy:
         self.trajectory = {
             "actions": [],
             "rewards": [],
-            "realized_pnl": [],
-            "inventory": [],
+            "eps": [],
         }
 
         self.model = model
@@ -376,7 +375,9 @@ class RLStrategy:
                 )
 
                 self.trajectory["eps"].append((receive_ts, eps))
-                self.trajectory["actions"].append((receive_ts, current_action))
+                self.trajectory["actions"].append(
+                    (receive_ts, str(self.action_dict[current_action]))
+                )
 
                 self.place_order(
                     sim, current_action, receive_ts, asks_price, bids_price
@@ -424,8 +425,7 @@ class RLStrategy:
         self.trajectory = {
             "actions": [],
             "rewards": [],
-            "realized_pnl": [],
-            "inventory": [],
+            "eps": [],
         }
 
     def state_to_index(self, state_values):

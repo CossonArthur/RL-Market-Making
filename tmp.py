@@ -38,7 +38,7 @@ sim = Real_Data_Env(market_data, 1e-4, 1e-4)
 
 # Train and evaluate the strategy
 trades, market_updates, orders, updates, trajectory = strategy.run(sim, "train", 100000)
-evaluate_strategy(strategy, trades, updates, orders)
+evaluate_strategy(strategy, trades, updates, orders, trajectory)
 
 # # # Save Q-table
 # time = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
@@ -49,6 +49,6 @@ evaluate_strategy(strategy, trades, updates, orders)
 
 
 # # Evaluate in test mode
-trades, market_updates, orders, updates, trajectory = strategy.run(sim, "test", 1000000)
+# trades, market_updates, orders, updates, trajectory = strategy.run(sim, "test", 1000000)
 
-evaluate_strategy(strategy, trades, updates, orders)
+# evaluate_strategy(strategy, trades, updates, orders, trajectory)

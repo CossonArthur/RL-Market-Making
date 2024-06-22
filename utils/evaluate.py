@@ -72,23 +72,6 @@ def get_pnl(
     return df
 
 
-def get_volumes(trades_list: List[OwnTrade]) -> Tuple[float, float, float, float]:
-    ask_made, bid_made = 0, 0
-    ask_take, bid_take = 0, 0
-    for trade in trades_list:
-        if trade.execute == "TRADE":
-            if trade.side == "sell":
-                ask_made += trade.size
-            else:
-                bid_made += trade.size
-        else:
-            if trade.side == "sell":
-                ask_take += trade.size
-            else:
-                bid_take += trade.size
-    return ask_made, bid_made, ask_take, bid_take
-
-
 def action_to_dataframe(action_list: List[Tuple]) -> pd.DataFrame:
 
     df = pd.DataFrame(
@@ -150,6 +133,7 @@ def evaluate_strategy(
     trades: List[OwnTrade],
     updates_list: List[Union[MarketEvent, OwnTrade]],
     orders: List[Tuple],
+    trajectory: dict[List],
 ):
 
     trades_df = trade_to_dataframe(trades)
@@ -160,18 +144,9 @@ def evaluate_strategy(
     orders_df["volatility"] = orders_df["spread"].rolling(window=100).std()
     orders_df = orders_df.dropna()
 
-    volumes = get_volumes(trades)
     pnl = get_pnl(updates_list, maker_fee=strategy.maker_fee)
 
-    if volumes[0] + volumes[1] != 0:
-        execution_rate = (volumes[2] + volumes[3]) / (volumes[0] + volumes[1]) * 100
-    else:
-        execution_rate = 0
-
     print(f"Mean PnL: ", pnl["total"].mean())
-    print(
-        f"Number of Trades: {round(volumes[0] + volumes[1])} -> Execution Rate: {round(execution_rate)}%"
-    )
 
     fig = make_subplots(
         rows=3, cols=1, shared_xaxes=True, subplot_titles=("Price", "PnL", "Inventory")
@@ -217,7 +192,7 @@ def evaluate_strategy(
         rows=3,
         cols=1,
         shared_xaxes=True,
-        subplot_titles=("Trades"),
+        subplot_titles=("Own Spread", "Spread", "Difference of spreads"),
     )
     fig.add_trace(
         go.Scatter(
@@ -254,14 +229,14 @@ def evaluate_strategy(
     fig.show()
 
     def action_parser(x):
-        x = x.split(",")
+        x = x.split(", ")
         return int(x[0][1:]), int(x[1][:-1])
 
     temp = []
-    for action in orders_df["action"]:
+    for action in trajectory["actions"]["actions"]:
         ask, bid = action_parser(action)
-        temp.append((-bid - 1, "bid"))
         temp.append((ask + 1, "ask"))
+        temp.append((-bid - 1, "bid"))
 
     order_book = pd.DataFrame(temp, columns=["action", "side"])
 
