@@ -6,7 +6,7 @@ from utils.evaluate import evaluate_strategy
 
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
+import plotly.express as px
 import datetime
 
 market_data = load_data()
@@ -23,30 +23,30 @@ trade_size = 0.01
 maker_fee = 0  # -0.00004
 
 # Initialize strategy
-# strategy = RLStrategy(
-#     model=q_learning,
-#     min_position=min_position,
-#     max_position=max_position,
-#     delay=delay,
-#     trade_size=trade_size,
-#     maker_fee=maker_fee,
-#     order_book_depth=4,
-# )
-
-strategy = BestPosStrategy(
+strategy = RLStrategy(
+    model=q_learning,
     min_position=min_position,
     max_position=max_position,
     delay=delay,
     trade_size=trade_size,
     maker_fee=maker_fee,
+    order_book_depth=4,
 )
+
+# strategy = BestPosStrategy(
+#     min_position=min_position,
+#     max_position=max_position,
+#     delay=delay,
+#     trade_size=trade_size,
+#     maker_fee=maker_fee,
+# )
 
 # Create the env
 sim = Real_Data_Env(market_data, 1e-4, 1e-4)
 
 
 # Train and evaluate the strategy
-trades, market_updates, orders, updates = strategy.run(sim, 100000)
+trades, market_updates, orders, updates = strategy.run(sim, "train", 500000)
 evaluate_strategy(strategy, trades, updates, orders)
 
 # # # Save Q-table

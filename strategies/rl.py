@@ -318,16 +318,19 @@ class RLStrategy:
                         )
 
                         # penalize the agent for having a position too close to the limits (mean-reverting strategy)
-                        reward += -1e3 * np.exp(
-                            2
-                            * abs(
-                                inventory_ratio(
-                                    self.inventory,
-                                    self.min_position,
-                                    self.max_position,
+                        reward += -10 * (
+                            np.exp(
+                                4
+                                * abs(
+                                    inventory_ratio(
+                                        self.inventory,
+                                        self.min_position,
+                                        self.max_position,
+                                    )
+                                    - 0.5
                                 )
-                                - 0.5
                             )
+                            - 1
                         )
 
                         prev_total_pnl = self.realized_pnl + self.unrealized_pnl
