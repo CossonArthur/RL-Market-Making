@@ -370,11 +370,12 @@ class RLStrategy:
                 # )
 
                 prev_action = current_action
+                eps = self.epsilon_val(tick, delta_reward=delta_reward)
                 current_action = self.model.choose_action(
-                    self.state_to_index(current_state),
-                    self.epsilon_val(tick, delta_reward=delta_reward),
+                    self.state_to_index(current_state), epsilon=eps
                 )
 
+                self.trajectory["eps"].append((receive_ts, eps))
                 self.trajectory["actions"].append((receive_ts, current_action))
 
                 self.place_order(

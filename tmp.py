@@ -37,21 +37,18 @@ sim = Real_Data_Env(market_data, 1e-4, 1e-4)
 
 
 # Train and evaluate the strategy
-trades, md_updates, orders, trajectory = strategy.run(sim, "train", 500000)
-evaluate_strategy(strategy, trades, trajectory, md_updates)
+trades, market_updates, orders, updates, trajectory = strategy.run(sim, "train", 100000)
+evaluate_strategy(strategy, trades, updates, orders)
 
 # # # Save Q-table
-time = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-strategy.save_q_table(f"model/{str(strategy.model)}_{time}.npy")
+# time = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+# strategy.save_q_table(f"model/{str(strategy.model)}_{time}.npy")
 
-# # Load Q-table for evaluation or further training
+# # # # Load Q-table for evaluation or further training
 # strategy.load_q_table(f"model/{str(strategy.model)}_{time}.npy")
 
 
-# # # Evaluate in test mode
-trades2, md_updates2, orders2, trajectory = strategy.run(sim, "test", 5000000)
+# # Evaluate in test mode
+trades, market_updates, orders, updates, trajectory = strategy.run(sim, "test", 1000000)
 
-trades = pd.concat([trades, trades2])
-md_updates = pd.concat([md_updates, md_updates2])
-
-evaluate_strategy(strategy, trades, trajectory, md_updates)
+evaluate_strategy(strategy, trades, updates, orders)

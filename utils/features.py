@@ -19,12 +19,11 @@ def volatility(price: List, n: int = 300) -> float:
     price (List): Price series.
     n (int): Number of periods for the moving average.
     """
-    # TODO : fix this
 
     if len(price) < n + 1:
         return 0
 
-    return np.std(np.diff(price[-n:]))
+    return np.std(np.diff(price[-n:]) / price[-n:-1])
 
 
 def RSI(price: List, n: int = 300) -> float:
