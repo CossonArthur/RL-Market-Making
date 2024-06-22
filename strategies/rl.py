@@ -20,7 +20,7 @@ class QLearning:
         self,
         alpha: float = 0.5,
         gamma: float = 0.99,
-        discount_alpha: float = 0.9999,
+        discount_alpha: float = 0.99999,
     ):
         self.alpha = alpha
         self.gamma = gamma
@@ -59,7 +59,7 @@ class SARSA:
         self,
         alpha: float = 0.5,
         gamma: float = 0.99,
-        discount_alpha: float = 0.9999,
+        discount_alpha: float = 0.99999,
     ):
         self.alpha = alpha
         self.gamma = gamma
@@ -153,7 +153,7 @@ class RLStrategy:
             (8, 0, 1, True),  # inventory ratio
             (10, -1, 1, False),  # book imbalance (mostly 0 here)
             # (10, 0, 1, False),  # spread #  TODO: Define relevant state space
-            # (10, 0, 1, False),  # volatility #  TODO: Define relevant state space
+            (5, 0, 0.3, False),  # volatility
             (10, 0, 100, False),  # rsi
         ]
 
@@ -191,17 +191,20 @@ class RLStrategy:
 
         self.actions_history.append(
             (
-                datetime.datetime.fromtimestamp(receive_ts),
+                receive_ts,
                 self.inventory,
-                self.action_dict[action_id],
+                str(self.action_dict[action_id]),
+                asks_price[ask_level],
+                bids_price[bid_level],
             )
         )
 
     def run(self, sim: Real_Data_Env, mode: str, count=10) -> Tuple[
         List[OwnTrade],
         List[MarketEvent],
-        List[Order],
-        dict,
+        List[dict],
+        List[Union[MarketEvent, OwnTrade]],
+        pd.DataFrame,
     ]:
         """
         This function runs simulation
@@ -310,31 +313,22 @@ class RLStrategy:
                             (best_ask + best_bid) / 2
                         )
 
-                    self.trajectory["realized_pnl"].append(
-                        (receive_ts, self.realized_pnl)
-                    )
-                    self.trajectory["inventory"].append((receive_ts, self.inventory))
-
                     if mode == "train":
                         reward = (
                             self.realized_pnl + self.unrealized_pnl - prev_total_pnl
                         )
 
                         # penalize the agent for having a position too close to the limits (mean-reverting strategy)
-                        reward += (
-                            -1e4
-                            * (
-                                abs(
-                                    inventory_ratio(
-                                        self.inventory,
-                                        self.min_position,
-                                        self.max_position,
-                                    )
-                                    - 0.5
+                        reward += -1e3 * np.exp(
+                            2
+                            * abs(
+                                inventory_ratio(
+                                    self.inventory,
+                                    self.min_position,
+                                    self.max_position,
                                 )
-                                + 1
+                                - 0.5
                             )
-                            ** 2
                         )
 
                         prev_total_pnl = self.realized_pnl + self.unrealized_pnl
@@ -352,7 +346,9 @@ class RLStrategy:
                     assert False, "invalid type of update!"
 
             # if the delay has passed, place an order
-            if receive_ts - prev_time >= self.delay and len(self.ongoing_orders) == 0:
+            if receive_ts - prev_time >= self.delay and (
+                len(self.ongoing_orders) == 0 or mode != "train"
+            ):
 
                 # update state
                 prev_state = current_state
@@ -406,9 +402,10 @@ class RLStrategy:
             )
 
         return (
-            trade_to_dataframe(trades_list),
-            md_to_dataframe(md_list),
+            trades_list,
+            md_list,
             self.actions_history,
+            updates_list,
             df_trajectory,
         )
 
@@ -480,7 +477,7 @@ class RLStrategy:
             inv_ratio,
             book_imb,
             # spread,
-            # vol,
+            vol,
             rsi,
         )
 
