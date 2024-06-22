@@ -26,23 +26,36 @@ class BestPosStrategy:
         self,
         delay: float,
         hold_time: Optional[float] = None,
+        initial_position: Optional[float] = None,
+        min_position: Optional[float] = None,
         max_position: Optional[float] = None,
-        trade_size: float = 0.001,
+        trade_size: float = 0.01,
+        maker_fee: float = -0.00004,
     ) -> None:
         """
         Args:
             delay(float): delay between orders in nanoseconds
             hold_time(Optional[float]): holding time in nanoseconds
         """
+        self.trade_size = trade_size
+        self.maker_fee = maker_fee
+
         self.delay = delay
         if hold_time is None:
-            hold_time = min(delay * 5, pd.Timedelta(10, "s").delta)
+            hold_time = min(delay * 5, 5e-2)
         self.hold_time = hold_time
-        self.max_position = max_position
-        self.trade_size = trade_size
-        self.coin_position = 0
 
-    def run(self, sim: Real_Data_Env) -> Tuple[
+        if initial_position is None:
+            initial_position = (max_position + min_position) / 2
+        self.min_position = min_position
+        self.max_position = max_position
+        self.inventory = initial_position
+
+        self.model = "BestPosStrategy"
+
+        self.actions_history = []
+
+    def run(self, sim: Real_Data_Env, count: int = 100000) -> Tuple[
         List[OwnTrade],
         List[MarketEvent],
         List[Union[OwnTrade, MarketEvent]],
@@ -53,12 +66,13 @@ class BestPosStrategy:
 
         Args:
             sim(Real_Data_Env): simulator
+            count(int): number of iterations
         Returns:
             trades_list(List[OwnTrade]): list of our executed trades
             md_list(List[MarketEvent]): list of market data received by strategy
+            orders_list(List[dict]): list of all orders placed by strategy
             updates_list( List[ Union[OwnTrade, MarketEvent] ] ): list of all updates
             received by strategy(market data and information about executed trades)
-            all_orders(List[Order]): list of all placed orders
         """
 
         # market data list
@@ -75,15 +89,19 @@ class BestPosStrategy:
         prev_time = -np.inf
         # orders that have not been executed/canceled yet
         ongoing_orders: Dict[int, Order] = {}
-        all_orders = []
 
         t1 = datetime.datetime.now().timestamp()
-        t1 = t2
+        t2 = t1
 
-        while True:
+        tick = 0
+
+        while tick < count:
             t2 = datetime.datetime.now().timestamp()
+
             # get update from simulator
             receive_ts, updates = sim.tick()
+            tick += 1
+
             if updates is None:
                 break
 
@@ -114,42 +132,64 @@ class BestPosStrategy:
                         ongoing_orders.pop(update.order_id)
 
                     if update.side == "buy":
-                        self.coin_position += update.size
+                        self.inventory += update.size
                     else:
-                        self.coin_position -= update.size
+                        self.inventory -= update.size
                 else:
                     assert False, "invalid type of update!"
 
-            if receive_ts - prev_time >= self.delay and len(ongoing_orders) == 0:
+            if receive_ts - prev_time >= self.delay:
                 prev_time = receive_ts
+
                 # place order
-                if (
-                    self.max_position is not None
-                    and abs(self.coin_position) > self.max_position
+                if self.max_position is not None and self.inventory > self.max_position:
+                    ask_order = sim.place_order(
+                        receive_ts, self.trade_size, "sell", best_ask
+                    )
+                    ongoing_orders[ask_order.order_id] = ask_order
+                    self.actions_history.append(
+                        (
+                            receive_ts,
+                            self.inventory,
+                            "(0,0)",
+                            best_ask,
+                            -np.inf,
+                        )
+                    )
+                elif (
+                    self.min_position is not None and self.inventory < self.min_position
                 ):
-                    if self.coin_position > 0:
-                        ask_order = sim.place_order(
-                            receive_ts, self.trade_size, "ASK", best_ask
+                    bid_order = sim.place_order(
+                        receive_ts, self.trade_size, "buy", best_bid
+                    )
+                    ongoing_orders[bid_order.order_id] = bid_order
+                    self.actions_history.append(
+                        (
+                            receive_ts,
+                            self.inventory,
+                            "(0,0)",
+                            np.inf,
+                            best_bid,
                         )
-                        ongoing_orders[ask_order.order_id] = ask_order
-                        all_orders += [ask_order]
-                    else:
-                        bid_order = sim.place_order(
-                            receive_ts, self.trade_size, "BID", best_bid
-                        )
-                        ongoing_orders[bid_order.order_id] = bid_order
-                        all_orders += [bid_order]
+                    )
                 else:
                     bid_order = sim.place_order(
-                        receive_ts, self.trade_size, "BID", best_bid
+                        receive_ts, self.trade_size, "buy", best_bid
                     )
                     ask_order = sim.place_order(
-                        receive_ts, self.trade_size, "ASK", best_ask
+                        receive_ts, self.trade_size, "sell", best_ask
                     )
                     ongoing_orders[bid_order.order_id] = bid_order
                     ongoing_orders[ask_order.order_id] = ask_order
-
-                    all_orders += [bid_order, ask_order]
+                    self.actions_history.append(
+                        (
+                            receive_ts,
+                            self.inventory,
+                            "(0,0)",
+                            best_ask,
+                            best_bid,
+                        )
+                    )
 
             to_cancel = []
             for ID, order in ongoing_orders.items():
@@ -161,7 +201,11 @@ class BestPosStrategy:
 
         print(f"Simulation runned for {t2 - t1:.2f}s", " " * 50)
 
-        return trades_list, market_event_list, updates_list, all_orders
+        return trades_list, market_event_list, self.actions_history, updates_list
+
+    def reset(self):
+        self.inventory = (self.max_position + self.min_position) / 2
+        self.actions_history = []
 
 
 class StoikovStrategy:

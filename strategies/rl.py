@@ -104,7 +104,7 @@ class RLStrategy:
         delay: float,
         initial_position: Optional[float] = None,
         hold_time: Optional[float] = None,
-        trade_size: float = 0.001,
+        trade_size: float = 0.01,
         maker_fee: float = -0.00004,
         order_book_depth: int = 6,
     ) -> None:
@@ -203,7 +203,6 @@ class RLStrategy:
         List[MarketEvent],
         List[dict],
         List[Union[MarketEvent, OwnTrade]],
-        pd.DataFrame,
     ]:
         """
         This function runs simulation
@@ -213,12 +212,12 @@ class RLStrategy:
         Returns:
             trades_list(List[OwnTrade]): list of our executed trades
             md_list(List[MarketEvent]): list of market data received by strategy
+            orders_list(List[dict]): list of all orders placed by strategy
             updates_list( List[ Union[OwnTrade, MarketEvent] ] ): list of all updates
             received by strategy(market data and information about executed trades)
-            all_orders(List[Order]): list of all placed orders
         """
 
-        md_list: List[MarketEvent] = []
+        market_event_list: List[MarketEvent] = []
         trades_list: List[OwnTrade] = []
         updates_list = []
 
@@ -246,6 +245,8 @@ class RLStrategy:
 
         tick = 0
         while tick < count:
+            t2 = datetime.datetime.now().timestamp()
+
             # get update from simulator
             receive_ts, updates = sim.tick()
             tick += 1
@@ -254,7 +255,6 @@ class RLStrategy:
                 break
 
             if tick % 50000 == 0:
-                t2 = datetime.datetime.now().timestamp()
                 simulated_time = (
                     receive_ts
                     - datetime.datetime(year=2022, month=10, day=1, hour=2).timestamp()
@@ -286,7 +286,7 @@ class RLStrategy:
                         ) = update_best_positions(
                             best_bid, best_ask, update, levels=True
                         )
-                    md_list.append(update)
+                    market_event_list.append(update)
 
                 # if update is trade, update position and pnl
                 elif isinstance(update, OwnTrade):
@@ -395,21 +395,7 @@ class RLStrategy:
 
         print(f"Simulation runned for {t2 - t1:.2f}s", " " * 50)
 
-        df_trajectory = {}
-        for key in self.trajectory.keys():
-            if len(self.trajectory[key]) == 0:
-                continue
-            df_trajectory[key] = pd.DataFrame(
-                np.array(self.trajectory[key]), columns=["timestamp", key]
-            )
-
-        return (
-            trades_list,
-            md_list,
-            self.actions_history,
-            updates_list,
-            df_trajectory,
-        )
+        return (trades_list, market_event_list, self.actions_history, updates_list)
 
     def reset(self):
 
@@ -509,6 +495,17 @@ class RLStrategy:
 
     def get_expected_reward(self, state, action):
         return self.model.q_table[state + (action,)]
+
+    def get_trajectory(self):
+        df_trajectory = {}
+        for key in self.trajectory.keys():
+            if len(self.trajectory[key]) == 0:
+                continue
+            df_trajectory[key] = pd.DataFrame(
+                np.array(self.trajectory[key]), columns=["timestamp", key]
+            )
+
+        return df_trajectory
 
     def get_q_table(self):
         return self.model.q_table

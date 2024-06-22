@@ -1,5 +1,6 @@
 from environment.env import Real_Data_Env
 from strategies.rl import QLearning, RLStrategy, SARSA
+from strategies.baselines import BestPosStrategy
 from utils.load_data import load_data
 from utils.evaluate import evaluate_strategy
 
@@ -15,21 +16,29 @@ q_learning = QLearning()
 sarsa = SARSA()
 
 
-min_position = -0.1  # Example: minimum position size
-max_position = 0.1  # Example: maximum position size
+min_position = -1  # Example: minimum position size
+max_position = 1  # Example: maximum position size
 delay = 5e-2
 trade_size = 0.01
 maker_fee = 0  # -0.00004
 
 # Initialize strategy
-strategy = RLStrategy(
-    model=q_learning,
+# strategy = RLStrategy(
+#     model=q_learning,
+#     min_position=min_position,
+#     max_position=max_position,
+#     delay=delay,
+#     trade_size=trade_size,
+#     maker_fee=maker_fee,
+#     order_book_depth=4,
+# )
+
+strategy = BestPosStrategy(
     min_position=min_position,
     max_position=max_position,
     delay=delay,
     trade_size=trade_size,
     maker_fee=maker_fee,
-    order_book_depth=4,
 )
 
 # Create the env
@@ -37,8 +46,8 @@ sim = Real_Data_Env(market_data, 1e-4, 1e-4)
 
 
 # Train and evaluate the strategy
-trades, market_updates, orders, updates, trajectory = strategy.run(sim, "train", 100000)
-evaluate_strategy(strategy, trades, updates, orders, trajectory)
+trades, market_updates, orders, updates = strategy.run(sim, 100000)
+evaluate_strategy(strategy, trades, updates, orders)
 
 # # # Save Q-table
 # time = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")

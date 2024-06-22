@@ -133,7 +133,6 @@ def evaluate_strategy(
     trades: List[OwnTrade],
     updates_list: List[Union[MarketEvent, OwnTrade]],
     orders: List[Tuple],
-    trajectory: dict[List],
 ):
 
     trades_df = trade_to_dataframe(trades)
@@ -141,8 +140,6 @@ def evaluate_strategy(
 
     orders_df = orders_df.iloc[trades_df.shape[0] :]
     orders_df["spread"] = orders_df["ask_price"] - orders_df["bid_price"]
-    orders_df["volatility"] = orders_df["spread"].rolling(window=100).std()
-    orders_df = orders_df.dropna()
 
     pnl = get_pnl(updates_list, maker_fee=strategy.maker_fee)
 
@@ -232,19 +229,26 @@ def evaluate_strategy(
         x = x.split(", ")
         return int(x[0][1:]), int(x[1][:-1])
 
-    temp = []
-    for action in trajectory["actions"]["actions"]:
-        ask, bid = action_parser(action)
-        temp.append((ask + 1, "ask"))
-        temp.append((-bid - 1, "bid"))
+    try:
+        strategy.get_trajectory()
+        trajectory = strategy.get_trajectory()
 
-    order_book = pd.DataFrame(temp, columns=["action", "side"])
+        temp = []
+        for action in trajectory["actions"]["actions"]:
+            ask, bid = action_parser(action)
+            temp.append((ask + 1, "ask"))
+            temp.append((-bid - 1, "bid"))
 
-    fig = px.histogram(
-        order_book,
-        x="action",
-        color="side",
-        template="plotly_dark",
-        title="Number of actions",
-    )
-    fig.show()
+        order_book = pd.DataFrame(temp, columns=["action", "side"])
+
+        fig = px.histogram(
+            order_book,
+            x="action",
+            color="side",
+            template="plotly_dark",
+            title="Number of actions",
+        )
+        fig.show()
+    except AttributeError:
+        print("Trajectory not available")
+        return
