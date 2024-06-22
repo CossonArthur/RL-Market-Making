@@ -49,39 +49,45 @@ class QLearning:
     def update_params(self):
         self.alpha = self.alpha * self.discount_alpha
 
+    def __str__(self):
+        return f"QLearning(alpha={self.alpha}_gamma={self.gamma}_disc_alpha={self.discount_alpha})"
 
-# class SARSA:
 
-#     def __init__(
-#         self,
-#         alpha: float = 0.3,
-#         gamma: float = 0.99,
-#         discount_alpha: float = 0.99999,
-#     ):
-#         self.alpha = alpha
-#         self.gamma = gamma
-#         self.discount_alpha = discount_alpha
+class SARSA:
 
-#     def initialize(self, state_sizes, n_actions):
-#         self.q_table = np.zeros(state_sizes + [n_actions])
+    def __init__(
+        self,
+        alpha: float = 0.5,
+        gamma: float = 0.99,
+        discount_alpha: float = 0.9999,
+    ):
+        self.alpha = alpha
+        self.gamma = gamma
+        self.discount_alpha = discount_alpha
 
-#     def choose_action(self, state, epsilon=0.3):
-#         if np.random.uniform(0, 1) < epsilon:
-#             return np.random.choice(self.q_table.shape[-1])
-#         else:
-#             return np.argmax(self.q_table[state])
+    def initialize(self, state_sizes, n_actions):
+        self.q_table = np.zeros(state_sizes + [n_actions])
 
-#     def update(self, state, action, reward, next_state, next_action):
-#         self.update_params()
+    def choose_action(self, state, epsilon=0.3):
+        if np.random.uniform(0, 1) < epsilon:
+            return np.random.choice(self.q_table.shape[-1])
+        else:
+            return np.argmax(self.q_table[state])
 
-#         self.q_table[state + (action,)] += self.alpha * (
-#             reward
-#             + self.gamma * self.q_table[next_state + (next_action,)]
-#             - self.q_table[state + (action,)]
-#         )
+    def update(self, state, action, reward, next_state, next_action):
+        self.update_params()
 
-#     def update_params(self):
-#         self.alpha = self.alpha * self.discount_alpha
+        self.q_table[state + (action,)] += self.alpha * (
+            reward
+            + self.gamma * self.q_table[next_state + (next_action,)]
+            - self.q_table[state + (action,)]
+        )
+
+    def update_params(self):
+        self.alpha = self.alpha * self.discount_alpha
+
+    def __str__(self):
+        return f"SARSA(alpha={self.alpha}_gamma={self.gamma}_disc_alpha={self.discount_alpha})"
 
 
 class RLStrategy:

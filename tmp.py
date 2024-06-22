@@ -1,5 +1,5 @@
 from environment.env import Real_Data_Env
-from strategies.rl import QLearning, RLStrategy
+from strategies.rl import QLearning, RLStrategy, SARSA
 from utils.load_data import load_data
 from utils.evaluate import evaluate_strategy
 
@@ -12,6 +12,7 @@ market_data = load_data()
 
 # Configuration and initialization
 q_learning = QLearning()
+sarsa = SARSA()
 
 
 min_position = -0.1  # Example: minimum position size
@@ -41,12 +42,11 @@ evaluate_strategy(strategy, trades, trajectory, md_updates)
 
 # # # Save Q-table
 time = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-strategy.save_q_table(f"model/q_table_{time}.npy")
+strategy.save_q_table(f"model/{str(strategy.model)}_{time}.npy")
 
 # # Load Q-table for evaluation or further training
-# strategy.load_q_table(f"model/q_table_{time}.npy")
+# strategy.load_q_table(f"model/{str(strategy.model)}_{time}.npy")
 
-# strategy.load_q_table("model/penalisation_Qlearning_good.npy")
 
 # # # Evaluate in test mode
 trades2, md_updates2, orders2, trajectory = strategy.run(sim, "test", 5000000)
