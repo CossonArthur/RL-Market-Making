@@ -221,7 +221,7 @@ class StoikovStrategy:
         trade_size: Optional[float] = 0.01,
         risk_aversion: Optional[float] = 0.5,
         k: Optional[float] = 1.5,
-        post_only=False,
+        maker_fee: Optional[float] = -0.00004,
     ) -> None:
         """
         Args:
@@ -230,36 +230,29 @@ class StoikovStrategy:
         """
         self.delay = delay
         if hold_time is None:
-            hold_time = max(delay * 5, pd.Timedelta(10, "s").delta)
+            hold_time = min(delay * 5, 5e-2)
         self.hold_time = hold_time
         self.order_size = trade_size
         self.last_mid_prices = []
-        self.post_only = post_only
-        self.asset_position = 0
+
+        self.inventory = initial_position
+        self.maker_fee = maker_fee
+
         self.gamma = risk_aversion
         self.k = k
         self.current_bid_order_id = None
         self.current_ask_order_id = None
         self.previous_bid_order_id = None
         self.previous_ask_order_id = None
-        self.trades_dict = {
-            "place_ts": [],
-            "exchange_ts": [],
-            "receive_ts": [],
-            "trade_id": [],
-            "order_id": [],
-            "side": [],
-            "size": [],
-            "price": [],
-            "execute": [],
-            "mid_price": [],
-        }
+        self.actions_history = []
 
-    def run(self, sim: Real_Data_Env) -> Tuple[
+        self.model = "Stoikov"
+
+    def run(self, sim: Real_Data_Env, count: int = 10000) -> Tuple[
         List[OwnTrade],
         List[MarketEvent],
+        List[dict],
         List[Union[OwnTrade, MarketEvent]],
-        List[Order],
     ]:
         """
         This function runs simulation
@@ -275,7 +268,7 @@ class StoikovStrategy:
         """
 
         # market data list
-        md_list: List[MarketEvent] = []
+        market_event_list: List[MarketEvent] = []
         # executed trades list
         trades_list: List[OwnTrade] = []
         # all updates list
@@ -289,11 +282,36 @@ class StoikovStrategy:
         # orders that have not been executed/canceled yet
         ongoing_orders: Dict[int, Order] = {}
         all_orders = []
-        while True:
+
+        t1 = datetime.datetime.now().timestamp()
+        t2 = t1
+
+        tick = 0
+        while tick < count:
+            t2 = datetime.datetime.now().timestamp()
+
             # get update from simulator
             receive_ts, updates = sim.tick()
+            tick += 1
+
             if updates is None:
                 break
+
+            if tick % 50000 == 0:
+                simulated_time = (
+                    receive_ts
+                    - datetime.datetime(year=2022, month=10, day=1, hour=2).timestamp()
+                )
+                print(
+                    " " * 200,
+                    end="\r",
+                )
+                print(
+                    f"Elapsed time: {t2 - t1:.2f}s",
+                    f"Simulated time: {simulated_time//3600:.2f}h {(simulated_time%3600)//60:.2f}m {simulated_time%60:.2f}s",
+                    end="\r",
+                )
+
             # save updates
             updates_list += updates
             for update in updates:
@@ -308,36 +326,22 @@ class StoikovStrategy:
                     else:
                         self.last_mid_prices.append(mid_price)
                         self.last_mid_prices.pop(0)
-                    md_list.append(update)
+                    market_event_list.append(update)
                 elif isinstance(update, OwnTrade):
-                    self.trades_dict["place_ts"].append(update.place_ts)
-                    self.trades_dict["exchange_ts"].append(update.exchange_ts)
-                    self.trades_dict["receive_ts"].append(update.receive_ts)
-                    self.trades_dict["trade_id"].append(update.trade_id)
-                    self.trades_dict["order_id"].append(update.order_id)
-                    self.trades_dict["side"].append(update.side)
-                    self.trades_dict["size"].append(update.size)
-                    self.trades_dict["price"].append(update.price)
-                    self.trades_dict["execute"].append(update.execute)
-                    self.trades_dict["mid_price"].append(mid_price)
                     trades_list.append(update)
-                    if self.post_only and update.execute == "TRADE":
-                        if update.side == "ASK":
-                            self.asset_position -= update.size
-                        elif update.side == "BID":
-                            self.asset_position += update.size
-                    elif not self.post_only:
-                        if update.side == "ASK":
-                            self.asset_position -= update.size
-                        elif update.side == "BID":
-                            self.asset_position += update.size
+                    if update.execute == "TRADE":
+                        if update.side == "sell":
+                            self.inventory -= update.size
+                        elif update.side == "buy":
+                            self.inventory += update.size
+
                     # delete executed trades from the dict
                     if update.order_id in ongoing_orders.keys():
                         ongoing_orders.pop(update.order_id)
                 else:
                     assert False, "invalid type of update!"
 
-            if receive_ts - prev_time >= self.delay:
+            if receive_ts - prev_time >= self.delay and len(ongoing_orders) == 0:
                 prev_time = receive_ts
                 # place order
                 """
@@ -363,8 +367,8 @@ class StoikovStrategy:
                 else:
                     sigma = 1
                 sigma = sigma * np.sqrt(1 / 0.032)
-                delta_t = 0.032  ## there is approximately 0.032 seconds in between the orderbook uprates (nanoseconds / 1e9 = seconds)
-                q = self.asset_position
+                delta_t = 0.001  ## there is approximately 0.001 seconds in between the orderbook uprates (nanoseconds / 1e9 = seconds)
+                q = self.inventory
                 ## mid_price = (best_bid + best_ask)/2 ## was defined previously
                 reservation_price = mid_price - q * self.gamma * (sigma**2) * delta_t
                 deltas_ = self.gamma * (sigma**2) * delta_t + 2 / self.gamma * np.log(
@@ -374,11 +378,22 @@ class StoikovStrategy:
                 ask_price = np.round(reservation_price + deltas_ / 2, 1)
 
                 bid_order = sim.place_order(
-                    receive_ts, self.order_size, "BID", bid_price
+                    receive_ts, self.order_size, "buy", bid_price
                 )
                 ask_order = sim.place_order(
-                    receive_ts, self.order_size, "ASK", ask_price
+                    receive_ts, self.order_size, "sell", ask_price
                 )
+
+                self.actions_history.append(
+                    (
+                        receive_ts,
+                        self.inventory,
+                        f"({bid_price},{ask_price})",
+                        best_ask,
+                        best_bid,
+                    )
+                )
+
                 ongoing_orders[bid_order.order_id] = bid_order
                 ongoing_orders[ask_order.order_id] = ask_order
 
@@ -407,4 +422,12 @@ class StoikovStrategy:
                 except:
                     continue
 
-        return trades_list, md_list, updates_list, all_orders
+        return trades_list, market_event_list, self.actions_history, updates_list
+
+    def reset(self):
+        self.inventory = 0
+        self.last_mid_prices = []
+        self.current_bid_order_id = None
+        self.current_ask_order_id = None
+        self.previous_bid_order_id = None
+        self.previous_ask_order_id = None

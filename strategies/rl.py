@@ -199,7 +199,7 @@ class RLStrategy:
             )
         )
 
-    def run(self, sim: Real_Data_Env, mode: str, count=10) -> Tuple[
+    def run(self, sim: Real_Data_Env, mode: str, count=10000) -> Tuple[
         List[OwnTrade],
         List[MarketEvent],
         List[dict],
@@ -218,8 +218,11 @@ class RLStrategy:
             received by strategy(market data and information about executed trades)
         """
 
+        # market data list
         market_event_list: List[MarketEvent] = []
+        # executed trades list
         trades_list: List[OwnTrade] = []
+        # all updates list
         updates_list = []
 
         # current best positions
