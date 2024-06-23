@@ -46,14 +46,12 @@ def get_pnl(
                     inv -= trade.size
                     pnl += (1 - maker_fee) * trade.price * trade.size
 
-            # current portfolio value
-
         inv_arr[i] = inv
         pnl_arr[i] = pnl
         mid_price_arr[i] = (best_ask + best_bid) / 2
         spread_arr[i] = best_ask - best_bid
 
-    worth_arr = inv_arr * mid_price_arr + pnl
+    worth_arr = inv_arr * mid_price_arr + pnl_arr
     receive_ts = [update.receive_ts for update in updates_list]
     exchange_ts = [update.exchange_ts for update in updates_list]
 
@@ -63,7 +61,7 @@ def get_pnl(
             "receive_ts": receive_ts,
             "total": worth_arr,
             "inventory": inv_arr,
-            "PnL": pnl,
+            "PnL": pnl_arr,
             "mid_price": mid_price_arr,
             "spread": spread_arr,
         }
@@ -142,8 +140,11 @@ def evaluate_strategy(
     orders_df["spread"] = orders_df["ask_price"] - orders_df["bid_price"]
 
     pnl = get_pnl(updates_list, maker_fee=strategy.maker_fee)
+    pnl.set_index("exchange_ts", inplace=True)
+    pnl.index = pd.to_datetime(pnl.index, unit="s")
+    pnl.resample("1s").mean()
 
-    print(f"Mean PnL: ", pnl["total"].mean())
+    print(f"Mean PnL: ", round(pnl["total"].mean(), 2))
 
     fig = make_subplots(
         rows=3, cols=1, shared_xaxes=True, subplot_titles=("Price", "PnL", "Inventory")

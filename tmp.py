@@ -19,7 +19,7 @@ sarsa = SARSA()
 min_position = -1  # Example: minimum position size
 max_position = 1  # Example: maximum position size
 delay = 5e-2
-trade_size = 0.01
+trade_size = 0.001
 maker_fee = 0  # -0.00004
 
 # Initialize strategy
@@ -53,11 +53,12 @@ evaluate_strategy(strategy, trades, updates, orders)
 time = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
 strategy.save_q_table(f"model/{str(strategy.model)}_{time}.npy")
 
+strategy.reset()
+
 # # # Load Q-table for evaluation or further training
 strategy.load_q_table(f"model/{str(strategy.model)}_{time}.npy")
 
 
 # # Evaluate in test mode
-trades, market_updates, orders, updates = strategy.run(sim, "test", 1000000)
-
+trades, market_updates, orders, updates = strategy.run(sim, "test", 5000000)
 evaluate_strategy(strategy, trades, updates, orders)

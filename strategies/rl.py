@@ -318,7 +318,7 @@ class RLStrategy:
                         )
 
                         # penalize the agent for having a position too close to the limits (mean-reverting strategy)
-                        reward += -20 * (
+                        reward += -40 * (
                             np.exp(
                                 4
                                 * abs(
