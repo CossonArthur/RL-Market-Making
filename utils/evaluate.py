@@ -125,7 +125,6 @@ def md_to_dataframe(md_list: List[MarketEvent]) -> pd.DataFrame:
     return df
 
 
-# TODO: Add a function to evaluate the strategy graph etc
 def evaluate_strategy(
     strategy,
     trades: List[OwnTrade],
@@ -133,11 +132,11 @@ def evaluate_strategy(
     orders: List[Tuple],
 ):
 
-    trades_df = trade_to_dataframe(trades)
-    orders_df = action_to_dataframe(orders)
+    # trades_df = trade_to_dataframe(trades)
+    # orders_df = action_to_dataframe(orders)
 
-    orders_df = orders_df.iloc[trades_df.shape[0] :]
-    orders_df["spread"] = orders_df["ask_price"] - orders_df["bid_price"]
+    # orders_df = orders_df.iloc[trades_df.shape[0] :]
+    # orders_df["spread"] = orders_df["ask_price"] - orders_df["bid_price"]
 
     pnl = get_pnl(updates_list, maker_fee=strategy.maker_fee)
     pnl.set_index("exchange_ts", inplace=True)

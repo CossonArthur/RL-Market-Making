@@ -131,7 +131,8 @@ class RLStrategy:
         self.hold_time = hold_time
 
         if initial_position is None:
-            initial_position = (max_position + min_position) / 2
+            initial_position = (self.max_position + self.min_position) / 2
+        self.initial_position = initial_position
         self.inventory = initial_position
         self.realized_pnl = 0
         self.unrealized_pnl = 0
@@ -318,7 +319,7 @@ class RLStrategy:
                         )
 
                         # penalize the agent for having a position too close to the limits (mean-reverting strategy)
-                        reward += -40 * (
+                        reward += -100 * (
                             np.exp(
                                 4
                                 * abs(
@@ -349,7 +350,7 @@ class RLStrategy:
 
             # if the delay has passed, place an order
             if receive_ts - prev_time >= self.delay and (
-                len(self.ongoing_orders) == 0 or mode != "train"
+                len(self.ongoing_orders) == 0  # or mode != "train"
             ):
 
                 # update state
@@ -402,9 +403,7 @@ class RLStrategy:
 
     def reset(self):
 
-        if initial_position is None:
-            initial_position = (self.max_position + self.min_position) / 2
-        self.inventory = initial_position
+        self.inventory = self.initial_position
         self.realized_pnl = 0
         self.unrealized_pnl = 0
 
