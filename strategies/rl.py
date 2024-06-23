@@ -386,8 +386,6 @@ class RLStrategy:
         if self.log:
             print(f"Simulation runned for {t2 - t1:.2f}s", " " * 50)
 
-        print(nb_updates)
-
         return (trades_list, market_event_list, self.actions_history, updates_list)
 
     def reset(self):
