@@ -119,8 +119,8 @@ class Real_Data_Env:
         """
         Args:
             market_data(List[MarketEvent]): market data
-            execution_latency(float): latency in nanoseconds
-            market_event_latency(float): latency in nanoseconds
+            execution_latency(float): latency in nanoseconds for order execution
+            market_event_latency(float): latency in nanoseconds for market event reception
         """
 
         self.price_history = []

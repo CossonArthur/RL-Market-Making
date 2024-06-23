@@ -95,7 +95,7 @@ def compute_market_event(books, trades):
 def load_data(max_depth=19):
 
     with ThreadPoolExecutor() as executor:
-        future_books = executor.submit(load_book)
+        future_books = executor.submit(load_book, max_depth)
         future_trades = executor.submit(load_trades)
 
         print("Loading book and trade data concurrently...")
