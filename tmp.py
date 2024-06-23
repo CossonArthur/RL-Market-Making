@@ -50,14 +50,14 @@ trades, market_updates, orders, updates = strategy.run(sim, "train", 500000)
 evaluate_strategy(strategy, trades, updates, orders)
 
 # # # Save Q-table
-# time = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-# strategy.save_q_table(f"model/{str(strategy.model)}_{time}.npy")
+time = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+strategy.save_q_table(f"model/{str(strategy.model)}_{time}.npy")
 
-# # # # Load Q-table for evaluation or further training
-# strategy.load_q_table(f"model/{str(strategy.model)}_{time}.npy")
+# # # Load Q-table for evaluation or further training
+strategy.load_q_table(f"model/{str(strategy.model)}_{time}.npy")
 
 
 # # Evaluate in test mode
-# trades, market_updates, orders, updates, trajectory = strategy.run(sim, "test", 1000000)
+trades, market_updates, orders, updates = strategy.run(sim, "test", 1000000)
 
-# evaluate_strategy(strategy, trades, updates, orders, trajectory)
+evaluate_strategy(strategy, trades, updates, orders)

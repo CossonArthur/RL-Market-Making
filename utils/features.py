@@ -11,7 +11,7 @@ def inventory_ratio(inventory: float, min_inventory: float, max_inventory: float
     return (inventory - min_inventory) / (max_inventory - min_inventory)
 
 
-def volatility(price: List, n: int = 300) -> float:
+def volatility(price: List, n: int = 1000) -> float:
     """
     Calculate the volatility of a price series.
 
@@ -40,26 +40,18 @@ def RSI(price: List, n: int = 300) -> float:
 
     def EMA(data, window):
         alpha = 2 / (window + 1.0)
-        alpha_rev = 1 - alpha
-        n = data.shape[0]
 
-        pows = (1 - alpha) ** (np.arange(n + 1))
+        for i in range(1, len(data)):
+            data[i] = alpha * data[i] + (1 - alpha) * data[i - 1]
 
-        scale_arr = 1 / pows[:-1]
-        offset = data[0] * pows[1:]
-        pw0 = alpha * alpha_rev ** (n - 1)
-
-        mult = data * pw0 * scale_arr
-        cumsums = mult.cumsum()
-        out = offset + cumsums * scale_arr[::-1]
-        return out
+        return data[-1]
 
     delta = np.diff(price[-n - 1 :])
     gain = delta[delta > 0]
     loss = -delta[delta < 0]
 
-    avg_gain = EMA(gain, n)[-1]
-    avg_loss = EMA(loss, n)[-1]
+    avg_gain = EMA(gain, n)
+    avg_loss = abs(EMA(loss, n))
 
     rs = avg_gain / avg_loss
 

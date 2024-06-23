@@ -185,45 +185,45 @@ def evaluate_strategy(
     skew = pnl["inventory"].skew()
     print(f"Mean Inventory: {mean:.4f} - Std: {std:.4f} - Skew: {skew:.2f}")
 
-    fig = make_subplots(
-        rows=3,
-        cols=1,
-        shared_xaxes=True,
-        subplot_titles=("Own Spread", "Spread", "Difference of spreads"),
-    )
-    fig.add_trace(
-        go.Scatter(
-            x=orders_df["receive_ts"].apply(
-                lambda x: datetime.datetime.fromtimestamp(x)
-            ),
-            y=orders_df["spread"],
-            name="Own spread",
-        ),
-        row=1,
-        col=1,
-    )
-    fig.add_trace(
-        go.Scatter(
-            x=pnl["receive_ts"].apply(lambda x: datetime.datetime.fromtimestamp(x)),
-            y=pnl["spread"],
-            name="Spread",
-        ),
-        row=2,
-        col=1,
-    )
-    fig.add_trace(
-        go.Scatter(
-            x=orders_df["receive_ts"].apply(
-                lambda x: datetime.datetime.fromtimestamp(x)
-            ),
-            y=orders_df["spread"] - pnl["spread"],
-            name="Difference of spreads",
-        ),
-        row=3,
-        col=1,
-    )
-    fig.update_layout(title_text="Spread", template="plotly_dark")
-    fig.show()
+    # fig = make_subplots(
+    #     rows=3,
+    #     cols=1,
+    #     shared_xaxes=True,
+    #     subplot_titles=("Own Spread", "Spread", "Difference of spreads"),
+    # )
+    # fig.add_trace(
+    #     go.Scatter(
+    #         x=orders_df["receive_ts"].apply(
+    #             lambda x: datetime.datetime.fromtimestamp(x)
+    #         ),
+    #         y=orders_df["spread"],
+    #         name="Own spread",
+    #     ),
+    #     row=1,
+    #     col=1,
+    # )
+    # fig.add_trace(
+    #     go.Scatter(
+    #         x=pnl["receive_ts"].apply(lambda x: datetime.datetime.fromtimestamp(x)),
+    #         y=pnl["spread"],
+    #         name="Spread",
+    #     ),
+    #     row=2,
+    #     col=1,
+    # )
+    # fig.add_trace(
+    #     go.Scatter(
+    #         x=orders_df["receive_ts"].apply(
+    #             lambda x: datetime.datetime.fromtimestamp(x)
+    #         ),
+    #         y=orders_df["spread"] - pnl["spread"],
+    #         name="Difference of spreads",
+    #     ),
+    #     row=3,
+    #     col=1,
+    # )
+    # fig.update_layout(title_text="Spread", template="plotly_dark")
+    # fig.show()
 
     def action_parser(x):
         x = x.split(", ")
