@@ -31,6 +31,7 @@ class BestPosStrategy:
         max_position: Optional[float] = None,
         trade_size: float = 0.01,
         maker_fee: float = -0.00004,
+        log: bool = True,
     ) -> None:
         """
         Args:
@@ -54,6 +55,8 @@ class BestPosStrategy:
         self.model = "BestPosStrategy"
 
         self.actions_history = []
+
+        self.log = log
 
     def run(self, sim: Real_Data_Env, count: int = 100000) -> Tuple[
         List[OwnTrade],
@@ -105,16 +108,20 @@ class BestPosStrategy:
             if updates is None:
                 break
 
-            simulated_time = (
-                receive_ts
-                - datetime.datetime(year=2022, month=10, day=1, hour=2).timestamp()
-            )
-            print(
-                f"Elapsed time: {t2 - t1:.2f}s",
-                f"Simulated time: {simulated_time//3600:.2f}h {(simulated_time%3600)//60:.2f}m {simulated_time%60:.2f}s",
-                " " * 10,
-                end="\r",
-            )
+            if tick % 50000 == 0 and self.log:
+                simulated_time = (
+                    receive_ts
+                    - datetime.datetime(year=2022, month=10, day=1, hour=2).timestamp()
+                )
+                print(
+                    " " * 200,
+                    end="\r",
+                )
+                print(
+                    f"Elapsed time: {t2 - t1:.2f}s",
+                    f"Simulated time: {simulated_time//3600:.2f}h {(simulated_time%3600)//60:.2f}m {simulated_time%60:.2f}s",
+                    end="\r",
+                )
 
             # save updates
             updates_list += updates
@@ -199,7 +206,8 @@ class BestPosStrategy:
             for ID in to_cancel:
                 ongoing_orders.pop(ID)
 
-        print(f"Simulation runned for {t2 - t1:.2f}s", " " * 50)
+        if self.log:
+            print(f"Simulation runned for {t2 - t1:.2f}s", " " * 50)
 
         return trades_list, market_event_list, self.actions_history, updates_list
 
@@ -217,11 +225,13 @@ class StoikovStrategy:
     def __init__(
         self,
         delay: float,
+        initial_position: Optional[float] = 0,
         hold_time: Optional[float] = None,
         trade_size: Optional[float] = 0.01,
         risk_aversion: Optional[float] = 0.5,
         k: Optional[float] = 1.5,
         maker_fee: Optional[float] = -0.00004,
+        log: bool = True,
     ) -> None:
         """
         Args:
@@ -297,7 +307,7 @@ class StoikovStrategy:
             if updates is None:
                 break
 
-            if tick % 50000 == 0:
+            if tick % 50000 == 0 and self.log:
                 simulated_time = (
                     receive_ts
                     - datetime.datetime(year=2022, month=10, day=1, hour=2).timestamp()
@@ -421,6 +431,9 @@ class StoikovStrategy:
                     ongoing_orders.pop(ID)
                 except:
                     continue
+
+        if self.log:
+            print(f"Simulation runned for {t2 - t1:.2f}s", " " * 50)
 
         return trades_list, market_event_list, self.actions_history, updates_list
 

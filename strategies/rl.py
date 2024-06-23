@@ -107,6 +107,7 @@ class RLStrategy:
         trade_size: float = 0.01,
         maker_fee: float = -0.00004,
         order_book_depth: int = 6,
+        log: bool = True,
     ) -> None:
         """
         Args:
@@ -133,19 +134,14 @@ class RLStrategy:
         if initial_position is None:
             initial_position = (self.max_position + self.min_position) / 2
         self.initial_position = initial_position
-        self.inventory = initial_position
-        self.realized_pnl = 0
-        self.unrealized_pnl = 0
-        self.actions_history = []
-        self.ongoing_orders = {}
 
         self.action_dict = {  # id : (ask_level, bid_level)
             i: x
             for (i, x) in enumerate(
                 [
                     (i, j)
-                    for i in range(order_book_depth + 1)
-                    for j in range(order_book_depth + 1)
+                    for i in range(order_book_depth)
+                    for j in range(order_book_depth)
                 ]
             )
         }
@@ -158,17 +154,10 @@ class RLStrategy:
             (10, 0, 100, False),  # rsi
         ]
 
-        self.trajectory = {
-            "actions": [],
-            "rewards": [],
-            "eps": [],
-        }
-
         self.model = model
-        self.model.initialize(
-            [x[0] + 2 if x[3] else x[0] for x in self.state_space],
-            len(self.action_dict),
-        )
+        self.log = log
+
+        self.reset()
 
     def place_order(
         self,
@@ -248,6 +237,7 @@ class RLStrategy:
         t2 = t1
 
         tick = 0
+        nb_updates = 0
         while tick < count:
             t2 = datetime.datetime.now().timestamp()
 
@@ -258,7 +248,7 @@ class RLStrategy:
             if updates is None:
                 break
 
-            if tick % 50000 == 0:
+            if tick % 50000 == 0 and self.log:
                 simulated_time = (
                     receive_ts
                     - datetime.datetime(year=2022, month=10, day=1, hour=2).timestamp()
@@ -347,6 +337,7 @@ class RLStrategy:
                             self.state_to_index(current_state),
                             current_action,
                         )
+                        nb_updates += 1
 
                 else:
                     assert False, "invalid type of update!"
@@ -363,21 +354,10 @@ class RLStrategy:
                 )
 
                 # choose action
-                delta_reward = 0
-                # (
-                #     (
-                #         reward
-                #         - self.get_expected_reward(
-                #             self.state_to_index(prev_state), prev_action
-                #         )
-                #     )
-                #     if prev_action is not None and prev_state is not None
-                #     else None
-                # )
 
                 prev_action = current_action
                 if mode == "train":
-                    eps = self.epsilon_val(tick, delta_reward=delta_reward)
+                    eps = self.epsilon_val(nb_updates)
                 else:
                     eps = 0.01
                 current_action = self.model.choose_action(
@@ -403,7 +383,10 @@ class RLStrategy:
             for ID in to_cancel:
                 self.ongoing_orders.pop(ID)
 
-        print(f"Simulation runned for {t2 - t1:.2f}s", " " * 50)
+        if self.log:
+            print(f"Simulation runned for {t2 - t1:.2f}s", " " * 50)
+
+        print(nb_updates)
 
         return (trades_list, market_event_list, self.actions_history, updates_list)
 
@@ -421,6 +404,11 @@ class RLStrategy:
             "rewards": [],
             "eps": [],
         }
+
+        self.model.initialize(
+            [x[0] + 2 if x[3] else x[0] for x in self.state_space],
+            len(self.action_dict),
+        )
 
     def state_to_index(self, state_values):
         """
