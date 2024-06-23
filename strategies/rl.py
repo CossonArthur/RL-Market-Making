@@ -373,7 +373,10 @@ class RLStrategy:
                 # )
 
                 prev_action = current_action
-                eps = self.epsilon_val(tick, delta_reward=delta_reward)
+                if mode == "train":
+                    eps = self.epsilon_val(tick, delta_reward=delta_reward)
+                else:
+                    eps = 0.01
                 current_action = self.model.choose_action(
                     self.state_to_index(current_state), epsilon=eps
                 )
