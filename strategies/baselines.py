@@ -1,11 +1,8 @@
 from typing import List, Optional, Tuple, Union, Dict
 
 import numpy as np
-import pandas as pd
 import datetime
 
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 
 from environment.env import (
     OwnTrade,
@@ -257,6 +254,7 @@ class StoikovStrategy:
         self.actions_history = []
 
         self.model = "Stoikov"
+        self.log = log
 
     def run(self, sim: Real_Data_Env, count: int = 10000) -> Tuple[
         List[OwnTrade],

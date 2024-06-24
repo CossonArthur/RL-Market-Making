@@ -16,16 +16,19 @@ from utils.evaluate import trade_to_dataframe, md_to_dataframe
 
 
 class QLearning:
+
     def __init__(
         self,
         alpha: float = 0.5,
         gamma: float = 0.99,
-        discount_alpha: float = 0.9999,
+        alpha_decay: float = 0.9999,
+        min_alpha: float = 0.01,
     ):
         self.alpha = alpha
         self.gamma = gamma
 
-        self.discount_alpha = discount_alpha
+        self.alpha_decay = alpha_decay
+        self.min_alpha = min_alpha
 
     def initialize(self, state_sizes, n_actions):
         self.q_table = np.zeros(state_sizes + [n_actions])
@@ -47,10 +50,10 @@ class QLearning:
         )
 
     def update_params(self):
-        self.alpha = self.alpha * self.discount_alpha
+        self.alpha = max(self.alpha * self.alpha_decay, self.min_alpha)
 
     def __str__(self):
-        return f"QLearning(alpha={self.alpha}_gamma={self.gamma}_disc_alpha={self.discount_alpha})"
+        return f"QLearning(alpha={self.alpha}_gamma={self.gamma}_disc_alpha={self.alpha_decay}_min_alpha={self.min_alpha})"
 
 
 class SARSA:
@@ -59,11 +62,13 @@ class SARSA:
         self,
         alpha: float = 0.5,
         gamma: float = 0.99,
-        discount_alpha: float = 0.9999,
+        alpha_decay: float = 0.9999,
+        min_alpha: float = 0.01,
     ):
         self.alpha = alpha
         self.gamma = gamma
-        self.discount_alpha = discount_alpha
+        self.alpha_decay = alpha_decay
+        self.min_alpha = min_alpha
 
     def initialize(self, state_sizes, n_actions):
         self.q_table = np.zeros(state_sizes + [n_actions])
@@ -84,10 +89,10 @@ class SARSA:
         )
 
     def update_params(self):
-        self.alpha = self.alpha * self.discount_alpha
+        self.alpha = max(self.alpha * self.alpha_decay, self.min_alpha)
 
     def __str__(self):
-        return f"SARSA(alpha={self.alpha}_gamma={self.gamma}_disc_alpha={self.discount_alpha})"
+        return f"SARSA(alpha={self.alpha}_gamma={self.gamma}_disc_alpha={self.alpha_decay}_min_alpha={self.min_alpha})"
 
 
 class RLStrategy:
@@ -225,12 +230,12 @@ class RLStrategy:
         # last order timestamp
         prev_time = -np.inf
         # orders that have not been executed/canceled yet
-        prev_total_pnl = 0
 
         current_state = self.get_state(best_ask, best_bid, [], [], [])
         prev_state = current_state
         current_action = None
         prev_action = None
+        prev_mid_price = 0
         reward = 0
 
         t1 = datetime.datetime.now().timestamp()
@@ -270,6 +275,7 @@ class RLStrategy:
                 # if update is market data, update best position
                 if isinstance(update, MarketEvent):
                     if update.orderbook is not None:
+                        prev_mid_price = (best_bid + best_ask) / 2
                         (
                             best_bid,
                             best_ask,
@@ -299,19 +305,17 @@ class RLStrategy:
                             )
                         else:
                             self.inventory -= update.size
-                            self.realized_pnl += (
+                            self.realized_pnl = (
                                 (1 - self.maker_fee) * update.price * update.size
                             )
                         self.unrealized_pnl = self.inventory * (
-                            (best_ask + best_bid) / 2
+                            (best_ask + best_bid) / (2 * prev_mid_price) - 1
                         )
 
-                        reward = (
-                            self.realized_pnl + self.unrealized_pnl - prev_total_pnl
-                        )
+                        reward = self.realized_pnl + self.unrealized_pnl
 
                         # penalize the agent for having a position too close to the limits (mean-reverting strategy)
-                        reward += -100 * (
+                        reward += -1e5 * (
                             np.exp(
                                 4
                                 * abs(
@@ -326,7 +330,12 @@ class RLStrategy:
                             - 1
                         )
 
-                        prev_total_pnl = self.realized_pnl + self.unrealized_pnl
+                        if (
+                            self.inventory < self.min_position
+                            or self.inventory > self.max_position
+                        ):
+                            reward = -1e7
+
                         self.trajectory["rewards"].append((receive_ts, reward))
 
                         self.model.update(
@@ -382,8 +391,7 @@ class RLStrategy:
             for ID in to_cancel:
                 self.ongoing_orders.pop(ID)
 
-        if self.log:
-            print(f"Simulation runned for {t2 - t1:.2f}s", " " * 50)
+        print(f"Simulation runned for {t2 - t1:.2f}s", " " * 50)
 
         return (trades_list, market_event_list, self.actions_history, updates_list)
 

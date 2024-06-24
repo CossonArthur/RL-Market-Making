@@ -1,6 +1,5 @@
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-import plotly.express as px
+import matplotlib.pyplot as plt
+import seaborn as sns
 import numpy as np
 import pandas as pd
 import datetime
@@ -133,104 +132,110 @@ def evaluate_strategy(
 ):
 
     # trades_df = trade_to_dataframe(trades)
-    # orders_df = action_to_dataframe(orders)
+    orders_df = action_to_dataframe(orders)
 
-    # orders_df = orders_df.iloc[trades_df.shape[0] :]
-    # orders_df["spread"] = orders_df["ask_price"] - orders_df["bid_price"]
+    orders_df["receive_ts"] = orders_df["receive_ts"].apply(
+        lambda x: datetime.datetime.fromtimestamp(x)
+    )
+    orders_df["spread"] = orders_df["ask_price"] - orders_df["bid_price"]
 
     pnl = get_pnl(updates_list, maker_fee=strategy.maker_fee)
-    pnl.set_index("exchange_ts", inplace=True)
-    pnl.index = pd.to_datetime(pnl.index, unit="s")
-    pnl.resample("1T").mean()
-
-    print(f"Mean PnL: ", round(pnl["total"].mean(), 2))
-
-    fig = make_subplots(
-        rows=3, cols=1, shared_xaxes=True, subplot_titles=("Price", "PnL", "Inventory")
+    pnl["receive_ts"] = pnl["receive_ts"].apply(
+        lambda x: datetime.datetime.fromtimestamp(x)
     )
 
-    fig.add_trace(
-        go.Scatter(
-            x=pnl["receive_ts"].apply(lambda x: datetime.datetime.fromtimestamp(x)),
-            y=pnl["mid_price"],
-            name="Price",
-        ),
-        row=1,
-        col=1,
-    )
-    fig.add_trace(
-        go.Scatter(
-            x=pnl["receive_ts"].apply(lambda x: datetime.datetime.fromtimestamp(x)),
-            y=pnl["total"],
-            name="PnL",
-        ),
-        row=2,
-        col=1,
-    )
-    fig.add_trace(
-        go.Scatter(
-            x=pnl["receive_ts"].apply(lambda x: datetime.datetime.fromtimestamp(x)),
-            y=pnl["inventory"],
-            name="Inventory",
-        ),
-        row=3,
-        col=1,
-    )
-    fig.update_layout(title_text="Strategy Evaluation", template="plotly_dark")
-    fig.show()
+    print(f"Executed Trades: {len([x for x in trades if x.execute == 'TRADE']):.0f}")
+    print(f"Mean PnL: {pnl['total'].mean():.4f}")
+
+    fig, axs = plt.subplots(3, 1, sharex=True, figsize=(10, 8))
+
+    axs[0].plot(pnl["receive_ts"], pnl["mid_price"], label="Price")
+    axs[0].set_title("Price")
+    axs[0].grid()
+    axs[0].legend(loc="lower left")
+
+    axs[1].plot(pnl["receive_ts"], pnl["total"], label="PnL", color="orange")
+    axs[1].set_title("PnL")
+    axs[1].grid()
+    axs[1].legend(loc="lower left")
+
+    axs[2].plot(pnl["receive_ts"], pnl["inventory"], label="Inventory", color="green")
+    axs[2].set_title("Inventory")
+    axs[2].grid()
+    axs[2].legend(loc="upper left")
+
+    fig.suptitle("Strategy Evaluation", fontsize=16)
+    plt.tight_layout()
+    plt.subplots_adjust(top=0.9)
+    plt.show()
 
     # Inventory
     mean = pnl["inventory"].mean()
     std = pnl["inventory"].std()
     skew = pnl["inventory"].skew()
+
     print(f"Mean Inventory: {mean:.4f} - Std: {std:.4f} - Skew: {skew:.2f}")
 
-    # fig = make_subplots(
-    #     rows=3,
-    #     cols=1,
-    #     shared_xaxes=True,
-    #     subplot_titles=("Own Spread", "Spread", "Difference of spreads"),
-    # )
-    # fig.add_trace(
-    #     go.Scatter(
-    #         x=orders_df["receive_ts"].apply(
-    #             lambda x: datetime.datetime.fromtimestamp(x)
-    #         ),
-    #         y=orders_df["spread"],
-    #         name="Own spread",
-    #     ),
-    #     row=1,
-    #     col=1,
-    # )
-    # fig.add_trace(
-    #     go.Scatter(
-    #         x=pnl["receive_ts"].apply(lambda x: datetime.datetime.fromtimestamp(x)),
-    #         y=pnl["spread"],
-    #         name="Spread",
-    #     ),
-    #     row=2,
-    #     col=1,
-    # )
-    # fig.add_trace(
-    #     go.Scatter(
-    #         x=orders_df["receive_ts"].apply(
-    #             lambda x: datetime.datetime.fromtimestamp(x)
-    #         ),
-    #         y=orders_df["spread"] - pnl["spread"],
-    #         name="Difference of spreads",
-    #     ),
-    #     row=3,
-    #     col=1,
-    # )
-    # fig.update_layout(title_text="Spread", template="plotly_dark")
-    # fig.show()
+    fig, axs = plt.subplots(4, 1, figsize=(10, 8))
+
+    start = np.random.randint(0, min(len(pnl), len(orders_df)) - 10000)
+
+    axs[0].plot(
+        pnl.loc[start : start + 10000, "receive_ts"],
+        pnl.loc[start : start + 10000, "mid_price"],
+        label="Price",
+    )
+    axs[0].plot(
+        orders_df.loc[start : start + 10000, "receive_ts"],
+        orders_df.loc[start : start + 10000, "ask_price"],
+        label="Ask",
+        color="green",
+    )
+    axs[0].plot(
+        orders_df.loc[start : start + 10000, "receive_ts"],
+        orders_df.loc[start : start + 10000, "bid_price"],
+        label="Bid",
+        color="green",
+    )
+    axs[0].set_title("Spread")
+    axs[0].grid()
+    axs[0].legend()
+
+    axs[1].plot(
+        pnl.loc[start : start + 10000, "receive_ts"],
+        pnl.loc[start : start + 10000, "inventory"],
+        label="Inventory",
+    )
+    axs[1].set_title("Inventory")
+    axs[1].grid()
+    axs[1].legend()
+
+    axs[2].plot(
+        orders_df["spread"].rolling(window=1000).corr(pnl["spread"]),
+        label="Correlation between spread and spread order",
+    )
+    axs[2].set_title("Correlation between spread and spread order")
+    axs[2].legend()
+    axs[2].grid()
+
+    axs[3].plot(
+        orders_df["spread"].rolling(window=1000).corr(pnl["inventory"]),
+        label="Correlation between spread and inventory",
+    )
+    axs[3].set_title("Correlation between spread and inventory")
+    axs[3].legend()
+    axs[3].grid()
+
+    fig.suptitle("Spread", fontsize=16)
+
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+    plt.show()
 
     def action_parser(x):
         x = x.split(", ")
         return int(x[0][1:]), int(x[1][:-1])
 
     try:
-        strategy.get_trajectory()
         trajectory = strategy.get_trajectory()
 
         temp = []
@@ -241,14 +246,12 @@ def evaluate_strategy(
 
         order_book = pd.DataFrame(temp, columns=["action", "side"])
 
-        fig = px.histogram(
-            order_book,
-            x="action",
-            color="side",
-            template="plotly_dark",
-            title="Order executed by the strategy",
-        )
-        fig.show()
+        plt.figure(figsize=(10, 6))
+        sns.histplot(data=order_book, x="action", hue="side", multiple="stack")
+
+        plt.title("Order executed by the strategy", fontsize=16)
+        plt.grid()
+        plt.show()
     except AttributeError:
         print("Trajectory not available")
         return

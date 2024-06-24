@@ -73,4 +73,4 @@ def book_imbalance(asks_volume, bids_volume) -> float:
     if asks_size + bids_size == 0:
         return 0
 
-    return (asks_size - bids_size) / (asks_size + bids_size)
+    return (bids_size - asks_size) / (asks_size + bids_size)
