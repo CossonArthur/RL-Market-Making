@@ -306,7 +306,6 @@ class RLStrategy:
                             (best_ask + best_bid) / 2
                         )
 
-                    if mode == "train":
                         reward = (
                             self.realized_pnl + self.unrealized_pnl - prev_total_pnl
                         )

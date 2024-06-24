@@ -141,7 +141,7 @@ def evaluate_strategy(
     pnl = get_pnl(updates_list, maker_fee=strategy.maker_fee)
     pnl.set_index("exchange_ts", inplace=True)
     pnl.index = pd.to_datetime(pnl.index, unit="s")
-    pnl.resample("1s").mean()
+    pnl.resample("1T").mean()
 
     print(f"Mean PnL: ", round(pnl["total"].mean(), 2))
 
