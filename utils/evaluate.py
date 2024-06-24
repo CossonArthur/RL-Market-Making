@@ -246,7 +246,7 @@ def evaluate_strategy(
             x="action",
             color="side",
             template="plotly_dark",
-            title="Number of actions",
+            title="Order executed by the strategy",
         )
         fig.show()
     except AttributeError:
