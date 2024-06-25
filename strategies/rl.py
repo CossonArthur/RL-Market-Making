@@ -315,22 +315,26 @@ class RLStrategy:
                         reward = self.realized_pnl + self.unrealized_pnl
 
                         # penalize the agent for having a position too close to the limits (mean-reverting strategy)
-                        reward += -1e3 * (
-                            abs(
-                                inventory_ratio(
-                                    self.inventory,
-                                    self.min_position,
-                                    self.max_position,
+                        reward += (
+                            -1e4
+                            * (
+                                abs(
+                                    inventory_ratio(
+                                        self.inventory,
+                                        self.min_position,
+                                        self.max_position,
+                                    )
+                                    - 0.5
                                 )
-                                - 0.5
                             )
+                            ** 2
                         )
 
                         if (
                             self.inventory < self.min_position
                             or self.inventory > self.max_position
                         ):
-                            reward = -1e7
+                            reward = -1e5
 
                         # update state
                         current_state = self.get_state(
@@ -369,7 +373,7 @@ class RLStrategy:
                     sim.cancel_order(receive_ts, ID)
                     to_cancel.append(ID)
 
-                    reward = -200 * self.hold_time / self.delay
+                    reward = -40 * self.hold_time / self.delay
 
                     # update state
                     current_state = self.get_state(
