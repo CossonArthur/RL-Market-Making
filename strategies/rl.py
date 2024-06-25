@@ -233,8 +233,8 @@ class RLStrategy:
 
         current_state = self.get_state(best_ask, best_bid, [], [], [])
         prev_state = current_state
-        current_action = None
-        prev_action = None
+        current_action = 0
+        prev_action = current_action
         prev_mid_price = 0
         reward = 0
 
@@ -336,50 +336,34 @@ class RLStrategy:
                         ):
                             reward = -1e7
 
-                        self.trajectory["rewards"].append((receive_ts, reward))
-
-                        self.model.update(
-                            self.state_to_index(prev_state),
-                            prev_action,
-                            reward,
-                            self.state_to_index(current_state),
-                            current_action,
+                        # update state
+                        current_state = self.get_state(
+                            best_ask,
+                            best_bid,
+                            sim.price_history,
+                            asks_volume,
+                            bids_volume,
                         )
+
+                        prev_action = self.update_model(
+                            receive_ts,
+                            reward,
+                            prev_state,
+                            prev_action,
+                            current_state,
+                            nb_updates,
+                            mode,
+                        )
+                        prev_state = current_state
                         nb_updates += 1
 
                 else:
                     assert False, "invalid type of update!"
 
             # if the delay has passed, place an order
-            if receive_ts - prev_time >= self.delay and (
-                len(self.ongoing_orders) == 0  # or mode != "train"
-            ):
+            if receive_ts - prev_time >= self.delay and (len(self.ongoing_orders) == 0):
 
-                # update state
-                prev_state = current_state
-                current_state = self.get_state(
-                    best_ask, best_bid, sim.price_history, asks_volume, bids_volume
-                )
-
-                # choose action
-
-                prev_action = current_action
-                if mode == "train":
-                    eps = self.epsilon_val(nb_updates)
-                else:
-                    eps = 0.01
-                current_action = self.model.choose_action(
-                    self.state_to_index(current_state), epsilon=eps
-                )
-
-                self.trajectory["eps"].append((receive_ts, eps))
-                self.trajectory["actions"].append(
-                    (receive_ts, str(self.action_dict[current_action]))
-                )
-
-                self.place_order(
-                    sim, current_action, receive_ts, asks_price, bids_price
-                )
+                self.place_order(sim, prev_action, receive_ts, asks_price, bids_price)
 
                 prev_time = receive_ts
 
@@ -391,9 +375,65 @@ class RLStrategy:
             for ID in to_cancel:
                 self.ongoing_orders.pop(ID)
 
+                reward = -2 * self.hold_time / self.delay
+
+                # update state
+                current_state = self.get_state(
+                    best_ask, best_bid, sim.price_history, asks_volume, bids_volume
+                )
+
+                prev_action = self.update_model(
+                    receive_ts,
+                    reward,
+                    prev_state,
+                    prev_action,
+                    current_state,
+                    nb_updates,
+                    mode,
+                )
+                prev_state = current_state
+                nb_updates += 1
+
         print(f"Simulation runned for {t2 - t1:.2f}s", " " * 50)
 
         return (trades_list, market_event_list, self.actions_history, updates_list)
+
+    def update_model(
+        self,
+        timestamp: float,
+        reward: float,
+        prev_state,
+        prev_action,
+        current_state,
+        nb_updates: float,
+        mode: str,
+    ):
+
+        if mode == "train":
+            eps = self.epsilon_val(nb_updates)
+        else:
+            eps = 0.01
+
+        current_action = self.model.choose_action(
+            self.state_to_index(current_state), epsilon=eps
+        )
+
+        self.trajectory["rewards"].append((timestamp, reward))
+
+        self.model.update(
+            self.state_to_index(prev_state),
+            prev_action,
+            reward,
+            self.state_to_index(current_state),
+            current_action,
+        )
+
+        self.trajectory["eps"].append((timestamp, eps))
+        self.trajectory["actions"].append(
+            (timestamp, str(self.action_dict[current_action]))
+        )
+
+        return current_action
 
     def reset(self):
 
