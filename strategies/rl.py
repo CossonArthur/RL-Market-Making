@@ -315,19 +315,15 @@ class RLStrategy:
                         reward = self.realized_pnl + self.unrealized_pnl
 
                         # penalize the agent for having a position too close to the limits (mean-reverting strategy)
-                        reward += -1e5 * (
-                            np.exp(
-                                4
-                                * abs(
-                                    inventory_ratio(
-                                        self.inventory,
-                                        self.min_position,
-                                        self.max_position,
-                                    )
-                                    - 0.5
+                        reward += -1e3 * (
+                            abs(
+                                inventory_ratio(
+                                    self.inventory,
+                                    self.min_position,
+                                    self.max_position,
                                 )
+                                - 0.5
                             )
-                            - 1
                         )
 
                         if (
@@ -372,27 +368,28 @@ class RLStrategy:
                 if order.place_ts < receive_ts - self.hold_time:
                     sim.cancel_order(receive_ts, ID)
                     to_cancel.append(ID)
+
+                    reward = -200 * self.hold_time / self.delay
+
+                    # update state
+                    current_state = self.get_state(
+                        best_ask, best_bid, sim.price_history, asks_volume, bids_volume
+                    )
+
+                    prev_action = self.update_model(
+                        receive_ts,
+                        reward,
+                        prev_state,
+                        prev_action,
+                        current_state,
+                        nb_updates,
+                        mode,
+                    )
+                    prev_state = current_state
+                    nb_updates += 1
+
             for ID in to_cancel:
                 self.ongoing_orders.pop(ID)
-
-                reward = -2 * self.hold_time / self.delay
-
-                # update state
-                current_state = self.get_state(
-                    best_ask, best_bid, sim.price_history, asks_volume, bids_volume
-                )
-
-                prev_action = self.update_model(
-                    receive_ts,
-                    reward,
-                    prev_state,
-                    prev_action,
-                    current_state,
-                    nb_updates,
-                    mode,
-                )
-                prev_state = current_state
-                nb_updates += 1
 
         print(f"Simulation runned for {t2 - t1:.2f}s", " " * 50)
 
