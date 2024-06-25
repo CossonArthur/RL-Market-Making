@@ -105,7 +105,7 @@ class BestPosStrategy:
             if updates is None:
                 break
 
-            if tick % 50000 == 0 and self.log:
+            if self.log and tick % 50000 == 0:
                 simulated_time = (
                     receive_ts
                     - datetime.datetime(year=2022, month=10, day=1, hour=2).timestamp()
@@ -305,7 +305,7 @@ class StoikovStrategy:
             if updates is None:
                 break
 
-            if tick % 50000 == 0 and self.log:
+            if self.log and tick % 50000 == 0:
                 simulated_time = (
                     receive_ts
                     - datetime.datetime(year=2022, month=10, day=1, hour=2).timestamp()
@@ -351,7 +351,6 @@ class StoikovStrategy:
 
             if receive_ts - prev_time >= self.delay and len(ongoing_orders) == 0:
                 prev_time = receive_ts
-                # place order
                 """
                 reservation_price = s - q * gamma * (sigma**2) * (T - t)
                 delta_bid and delta_ask are equivalently distant from the reservation_orice
@@ -375,9 +374,9 @@ class StoikovStrategy:
                 else:
                     sigma = 1
                 sigma = sigma * np.sqrt(1 / 0.032)
-                delta_t = 0.001  ## there is approximately 0.001 seconds in between the orderbook uprates (nanoseconds / 1e9 = seconds)
+                delta_t = 0.1  ## there is approximately 0.1 seconds in between the orderbook uprates (nanoseconds / 1e9 = seconds)
                 q = self.inventory
-                ## mid_price = (best_bid + best_ask)/2 ## was defined previously
+
                 reservation_price = mid_price - q * self.gamma * (sigma**2) * delta_t
                 deltas_ = self.gamma * (sigma**2) * delta_t + 2 / self.gamma * np.log(
                     1 + self.gamma / self.k

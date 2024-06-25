@@ -154,8 +154,8 @@ class RLStrategy:
         self.state_space = [  # level, min, max for each feature, bin for extreme values
             (8, 0, 1, True),  # inventory ratio
             (10, -1, 1, False),  # book imbalance (mostly 0 here)
-            # (10, 0, 1, False),  # spread #  TODO: Define relevant state space
-            (5, 0, 0.3, False),  # volatility
+            # (10, 0, 1, False),  # spread
+            (10, 0, 0.3, False),  # volatility
             (10, 0, 100, False),  # rsi
         ]
 
@@ -253,7 +253,7 @@ class RLStrategy:
             if updates is None:
                 break
 
-            if tick % 50000 == 0 and self.log:
+            if self.log and tick % 50000 == 0:
                 simulated_time = (
                     receive_ts
                     - datetime.datetime(year=2022, month=10, day=1, hour=2).timestamp()

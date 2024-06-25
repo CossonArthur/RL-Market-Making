@@ -3,6 +3,7 @@ import seaborn as sns
 import numpy as np
 import pandas as pd
 import datetime
+from statsmodels.tsa.stattools import adfuller
 from typing import List, Union, Tuple
 
 from environment.env import OwnTrade, MarketEvent, update_best_positions
@@ -124,6 +125,12 @@ def md_to_dataframe(md_list: List[MarketEvent]) -> pd.DataFrame:
     return df
 
 
+def adf_test(timeseries):
+
+    dftest = adfuller(timeseries)
+    return ("stationnary" if dftest[1] < 0.05 else "non-stationnary", dftest[1])
+
+
 def evaluate_strategy(
     strategy,
     trades: List[OwnTrade],
@@ -147,22 +154,51 @@ def evaluate_strategy(
     print(f"Executed Trades: {len([x for x in trades if x.execute == 'TRADE']):.0f}")
     print(f"Mean PnL: {pnl['total'].mean():.4f}")
 
-    fig, axs = plt.subplots(3, 1, sharex=True, figsize=(10, 8))
+    fig, axs = plt.subplots(3, 2, figsize=(15, 10), width_ratios=[2, 1])
 
-    axs[0].plot(pnl["receive_ts"], pnl["mid_price"], label="Price")
-    axs[0].set_title("Price")
-    axs[0].grid()
-    axs[0].legend(loc="lower left")
+    axs[0, 0].plot(pnl["receive_ts"], pnl["mid_price"], label="Price")
+    axs[0, 0].set_title("Price")
+    axs[0, 0].grid()
+    axs[0, 0].legend(loc="lower left")
 
-    axs[1].plot(pnl["receive_ts"], pnl["total"], label="PnL", color="orange")
-    axs[1].set_title("PnL")
-    axs[1].grid()
-    axs[1].legend(loc="lower left")
+    mid_return = pnl["mid_price"].diff().dropna() / pnl["mid_price"].shift(1).dropna()
 
-    axs[2].plot(pnl["receive_ts"], pnl["inventory"], label="Inventory", color="green")
-    axs[2].set_title("Inventory")
-    axs[2].grid()
-    axs[2].legend(loc="upper left")
+    # Plot the hist of the corr_return
+    axs[0, 1].hist(mid_return, bins=50)
+    axs[0, 1].set_title(
+        f"mean: {mid_return.mean():.2f}, std: {mid_return.std():.2f}, skew: {mid_return.skew():.2f}"
+    )
+    axs[0, 1].set_xlabel("return")
+    axs[0, 1].set_ylabel("Frequency")
+    axs[0, 1].grid()
+
+    axs[1, 0].plot(pnl["receive_ts"], pnl["total"], label="PnL", color="orange")
+    axs[1, 0].set_title("PnL")
+    axs[1, 0].grid()
+    axs[1, 0].legend(loc="lower left")
+
+    axs[1, 1].hist(pnl["total"], bins=50)
+    axs[1, 1].set_title(
+        f"mean: {pnl['total'].mean():.2f}, std: {pnl['total'].std():.2f}, skew: {pnl['total'].skew():.2f}"
+    )
+    axs[1, 1].set_xlabel("PnL")
+    axs[1, 1].set_ylabel("Frequency")
+    axs[1, 1].grid()
+
+    axs[2, 0].plot(
+        pnl["receive_ts"], pnl["inventory"], label="Inventory", color="green"
+    )
+    axs[2, 0].set_title("Inventory")
+    axs[2, 0].grid()
+    axs[2, 0].legend(loc="upper left")
+
+    axs[2, 1].hist(pnl["inventory"], bins=50)
+    axs[2, 1].set_title(
+        f"mean: {pnl['inventory'].mean():.2f}, std: {pnl['inventory'].std():.2f}, skew: {pnl['inventory'].skew():.2f}"
+    )
+    axs[2, 1].set_xlabel("Inventory")
+    axs[2, 1].set_ylabel("Frequency")
+    axs[2, 1].grid()
 
     fig.suptitle("Strategy Evaluation", fontsize=16)
     plt.tight_layout()
@@ -173,62 +209,18 @@ def evaluate_strategy(
     mean = pnl["inventory"].mean()
     std = pnl["inventory"].std()
     skew = pnl["inventory"].skew()
+    result, p_value = adf_test(pnl.loc[: len(pnl["inventory"]) // 2, "inventory"])
+    result2, p_value2 = adf_test(pnl.loc[len(pnl["inventory"]) // 2 :, "inventory"])
 
+    print(f"ADF Test for inventory serie : {result} - p-value: {p_value:.4f}")
+    print(f"ADF Test for inventory serie : {result2} - p-value: {p_value2:.4f}")
     print(f"Mean Inventory: {mean:.4f} - Std: {std:.4f} - Skew: {skew:.2f}")
 
-    fig, axs = plt.subplots(4, 1, figsize=(10, 8))
-
-    start = np.random.randint(0, min(len(pnl), len(orders_df)) - 10000)
-
-    axs[0].plot(
-        pnl.loc[start : start + 10000, "receive_ts"],
-        pnl.loc[start : start + 10000, "mid_price"],
-        label="Price",
-    )
-    axs[0].plot(
-        orders_df.loc[start : start + 10000, "receive_ts"],
-        orders_df.loc[start : start + 10000, "ask_price"],
-        label="Ask",
-        color="green",
-    )
-    axs[0].plot(
-        orders_df.loc[start : start + 10000, "receive_ts"],
-        orders_df.loc[start : start + 10000, "bid_price"],
-        label="Bid",
-        color="green",
-    )
-    axs[0].set_title("Spread")
-    axs[0].grid()
-    axs[0].legend()
-
-    axs[1].plot(
-        pnl.loc[start : start + 10000, "receive_ts"],
-        pnl.loc[start : start + 10000, "inventory"],
-        label="Inventory",
-    )
-    axs[1].set_title("Inventory")
-    axs[1].grid()
-    axs[1].legend()
-
-    axs[2].plot(
+    plt.plot(
         orders_df["spread"].rolling(window=1000).corr(pnl["spread"]),
-        label="Correlation between spread and spread order",
     )
-    axs[2].set_title("Correlation between spread and spread order")
-    axs[2].legend()
-    axs[2].grid()
-
-    axs[3].plot(
-        orders_df["spread"].rolling(window=1000).corr(pnl["inventory"]),
-        label="Correlation between spread and inventory",
-    )
-    axs[3].set_title("Correlation between spread and inventory")
-    axs[3].legend()
-    axs[3].grid()
-
-    fig.suptitle("Spread", fontsize=16)
-
-    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+    plt.title("Spread correlation")
+    plt.grid()
     plt.show()
 
     def action_parser(x):
