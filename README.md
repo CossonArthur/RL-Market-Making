@@ -26,10 +26,14 @@ poetry install
 ## Usage
 
 analysis.ipynb : This notebook contains the analysis of the data
+
 market_making.ipynb : This notebook contains the implementation of the market making algorithm
 
 ## Repository Structure
 /enviroment : Contains the enviroment for the market making algorithm
+
 /strategies : Contains the strategies for the market making algorithm
+
 /utils : Contains the utility functions used in all the notebooks
+
 / models : Contains the models used in the market making algorithm
