@@ -36,7 +36,7 @@ def RSI(price: List, n: int = 300) -> float:
     """
 
     if len(price) < n + 1:
-        n = len(price) - 1
+        return 50
 
     def EMA(data, window):
         alpha = 2 / (window + 1.0)

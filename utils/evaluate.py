@@ -138,14 +138,6 @@ def evaluate_strategy(
     orders: List[Tuple],
 ):
 
-    # trades_df = trade_to_dataframe(trades)
-    orders_df = action_to_dataframe(orders)
-
-    orders_df["receive_ts"] = orders_df["receive_ts"].apply(
-        lambda x: datetime.datetime.fromtimestamp(x)
-    )
-    orders_df["spread"] = orders_df["ask_price"] - orders_df["bid_price"]
-
     pnl = get_pnl(updates_list, maker_fee=strategy.maker_fee)
     pnl["receive_ts"] = pnl["receive_ts"].apply(
         lambda x: datetime.datetime.fromtimestamp(x)
@@ -209,19 +201,14 @@ def evaluate_strategy(
     mean = pnl["inventory"].mean()
     std = pnl["inventory"].std()
     skew = pnl["inventory"].skew()
-    result, p_value = adf_test(pnl.loc[: len(pnl["inventory"]) // 2, "inventory"])
-    result2, p_value2 = adf_test(pnl.loc[len(pnl["inventory"]) // 2 :, "inventory"])
+    result, p_value = adf_test(
+        pnl.loc[
+            3 * len(pnl["inventory"]) // 8 : len(pnl["inventory"]) // 2, "inventory"
+        ]
+    )
 
     print(f"ADF Test for inventory serie : {result} - p-value: {p_value:.4f}")
-    print(f"ADF Test for inventory serie : {result2} - p-value: {p_value2:.4f}")
     print(f"Mean Inventory: {mean:.4f} - Std: {std:.4f} - Skew: {skew:.2f}")
-
-    plt.plot(
-        orders_df["spread"].rolling(window=1000).corr(pnl["spread"]),
-    )
-    plt.title("Spread correlation")
-    plt.grid()
-    plt.show()
 
     def action_parser(x):
         x = x.split(", ")

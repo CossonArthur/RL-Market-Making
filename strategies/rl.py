@@ -111,7 +111,7 @@ class RLStrategy:
         hold_time: Optional[float] = None,
         trade_size: float = 0.01,
         maker_fee: float = -0.00004,
-        order_book_depth: int = 6,
+        order_book_depth: int = 4,
         log: bool = True,
     ) -> None:
         """
@@ -315,17 +315,15 @@ class RLStrategy:
                         reward = self.realized_pnl + self.unrealized_pnl
 
                         # penalize the agent for having a position too close to the limits (mean-reverting strategy)
-                        reward += (
-                            -1e4
-                            * (
-                                abs(
-                                    inventory_ratio(
-                                        self.inventory,
-                                        self.min_position,
-                                        self.max_position,
-                                    )
-                                    - 0.5
+                        reward -= (
+                            1e3
+                            * abs(
+                                inventory_ratio(
+                                    self.inventory,
+                                    self.min_position,
+                                    self.max_position,
                                 )
+                                - 0.5
                             )
                             ** 2
                         )
