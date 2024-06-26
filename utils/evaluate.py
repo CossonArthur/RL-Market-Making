@@ -180,11 +180,15 @@ def evaluate_strategy(
     axs[2, 0].plot(
         pnl["receive_ts"], pnl["inventory"], label="Inventory", color="green"
     )
+    axs[2, 0].axhline(y=strategy.min_position, color="red", linestyle="--")
+    axs[2, 0].axhline(y=strategy.max_position, color="red", linestyle="--")
     axs[2, 0].set_title("Inventory")
     axs[2, 0].grid()
     axs[2, 0].legend(loc="upper left")
 
     axs[2, 1].hist(pnl["inventory"], bins=50)
+    axs[2, 1].axvline(x=strategy.min_position, color="red", linestyle="--")
+    axs[2, 1].axvline(x=strategy.max_position, color="red", linestyle="--")
     axs[2, 1].set_title(
         f"mean: {pnl['inventory'].mean():.2f}, std: {pnl['inventory'].std():.2f}, skew: {pnl['inventory'].skew():.2f}"
     )
@@ -197,10 +201,7 @@ def evaluate_strategy(
     plt.subplots_adjust(top=0.9)
     plt.show()
 
-    # Inventory
-    mean = pnl["inventory"].mean()
-    std = pnl["inventory"].std()
-    skew = pnl["inventory"].skew()
+    # Inventory ADF Test
     result, p_value = adf_test(
         pnl.loc[
             3 * len(pnl["inventory"]) // 8 : len(pnl["inventory"]) // 2, "inventory"
@@ -208,7 +209,6 @@ def evaluate_strategy(
     )
 
     print(f"ADF Test for inventory serie : {result} - p-value: {p_value:.4f}")
-    print(f"Mean Inventory: {mean:.4f} - Std: {std:.4f} - Skew: {skew:.2f}")
 
     def action_parser(x):
         x = x.split(", ")
@@ -232,5 +232,4 @@ def evaluate_strategy(
         plt.grid()
         plt.show()
     except AttributeError:
-        print("Trajectory not available")
         return

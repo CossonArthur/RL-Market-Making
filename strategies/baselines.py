@@ -223,6 +223,8 @@ class StoikovStrategy:
         self,
         delay: float,
         initial_position: Optional[float] = 0,
+        min_position: Optional[float] = None,
+        max_position: Optional[float] = None,
         hold_time: Optional[float] = None,
         trade_size: Optional[float] = 0.01,
         risk_aversion: Optional[float] = 0.5,
@@ -242,6 +244,10 @@ class StoikovStrategy:
         self.order_size = trade_size
         self.last_mid_prices = []
 
+        if initial_position is None:
+            initial_position = (max_position + min_position) / 2
+        self.min_position = min_position
+        self.max_position = max_position
         self.inventory = initial_position
         self.maker_fee = maker_fee
 
