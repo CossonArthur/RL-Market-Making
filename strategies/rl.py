@@ -300,7 +300,7 @@ class RLStrategy:
                     if order_type == "LIMIT" and update.execute == "TRADE":
                         if update.side == "buy":
                             self.inventory += update.size
-                            self.realized_pnl -= (
+                            self.realized_pnl = (
                                 (1 + self.maker_fee) * update.price * update.size
                             )
                         else:
@@ -308,15 +308,13 @@ class RLStrategy:
                             self.realized_pnl = (
                                 (1 - self.maker_fee) * update.price * update.size
                             )
-                        self.unrealized_pnl = self.inventory * (
-                            (best_ask + best_bid) / (2 * prev_mid_price) - 1
-                        )
+                        self.unrealized_pnl = update.size * ((best_ask + best_bid) / 2)
 
                         reward = self.realized_pnl + self.unrealized_pnl
 
                         # penalize the agent for having a position too close to the limits (mean-reverting strategy)
                         reward -= (
-                            1e3
+                            10
                             * abs(
                                 inventory_ratio(
                                     self.inventory,
@@ -325,14 +323,14 @@ class RLStrategy:
                                 )
                                 - 0.5
                             )
-                            ** 2
+                            ** 4
                         )
 
                         if (
                             self.inventory < self.min_position
                             or self.inventory > self.max_position
                         ):
-                            reward = -1e5
+                            reward = -1e2
 
                         # update state
                         current_state = self.get_state(
@@ -371,7 +369,7 @@ class RLStrategy:
                     sim.cancel_order(receive_ts, ID)
                     to_cancel.append(ID)
 
-                    reward = -40 * self.hold_time / self.delay
+                    reward = -self.hold_time / self.delay
 
                     # update state
                     current_state = self.get_state(

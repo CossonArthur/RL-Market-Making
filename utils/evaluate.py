@@ -17,7 +17,7 @@ def get_pnl(
     """
 
     # current position in btc and usd
-    inv, pnl = 0.0, 0.0
+    inv = 0.0
 
     N = len(updates_list)
     inv_arr = np.zeros((N,))
@@ -30,6 +30,10 @@ def get_pnl(
     best_ask: float = np.inf
 
     for i, update in enumerate(updates_list):
+
+        spread_arr[i] = best_ask - best_bid
+        mid_price_arr[i] = (best_ask + best_bid) / 2
+
         if isinstance(update, MarketEvent):
             best_bid, best_ask = update_best_positions(
                 best_bid, best_ask, update, levels=False
@@ -37,21 +41,17 @@ def get_pnl(
 
         if isinstance(update, OwnTrade):
             if update.execute == "TRADE":
-                trade = update
-                # update positions
-                if trade.side == "buy":
-                    inv += trade.size
-                    pnl -= (1 + maker_fee) * trade.price * trade.size
-                elif trade.side == "sell":
-                    inv -= trade.size
-                    pnl += (1 - maker_fee) * trade.price * trade.size
+
+                if update.side == "buy":
+                    inv += update.size
+                    pnl_arr[i] = (mid_price_arr[i] - update.price) * update.size
+
+                elif update.side == "sell":
+                    inv -= update.size
+                    pnl_arr[i] = (update.price - mid_price_arr[i]) * update.size
 
         inv_arr[i] = inv
-        pnl_arr[i] = pnl
-        mid_price_arr[i] = (best_ask + best_bid) / 2
-        spread_arr[i] = best_ask - best_bid
 
-    worth_arr = inv_arr * mid_price_arr + pnl_arr
     receive_ts = [update.receive_ts for update in updates_list]
     exchange_ts = [update.exchange_ts for update in updates_list]
 
@@ -59,7 +59,6 @@ def get_pnl(
         {
             "exchange_ts": exchange_ts,
             "receive_ts": receive_ts,
-            "total": worth_arr,
             "inventory": inv_arr,
             "PnL": pnl_arr,
             "mid_price": mid_price_arr,
@@ -142,9 +141,10 @@ def evaluate_strategy(
     pnl["receive_ts"] = pnl["receive_ts"].apply(
         lambda x: datetime.datetime.fromtimestamp(x)
     )
+    pnl = pnl.loc[pnl["PnL"] >= 0]
 
     print(f"Executed Trades: {len([x for x in trades if x.execute == 'TRADE']):.0f}")
-    print(f"Mean PnL: {pnl['total'].mean():.4f}")
+    print(f"Mean PnL: {pnl['PnL'].mean():.4f}")
 
     fig, axs = plt.subplots(3, 2, figsize=(15, 10), width_ratios=[2, 1])
 
@@ -154,24 +154,26 @@ def evaluate_strategy(
     axs[0, 0].legend(loc="lower left")
 
     mid_return = pnl["mid_price"].diff().dropna() / pnl["mid_price"].shift(1).dropna()
+    # remove teh outliers
+    mid_return = mid_return[(mid_return > -0.00005) & (mid_return < 0.00005)]
 
     # Plot the hist of the corr_return
-    axs[0, 1].hist(mid_return, bins=50)
+    axs[0, 1].hist(mid_return, bins=100)
     axs[0, 1].set_title(
-        f"mean: {mid_return.mean():.2f}, std: {mid_return.std():.2f}, skew: {mid_return.skew():.2f}"
+        f"mean: {mid_return.mean():.4f}, std: {mid_return.std():.4f}, skew: {mid_return.skew():.2f}"
     )
     axs[0, 1].set_xlabel("return")
     axs[0, 1].set_ylabel("Frequency")
     axs[0, 1].grid()
 
-    axs[1, 0].plot(pnl["receive_ts"], pnl["total"], label="PnL", color="orange")
+    axs[1, 0].plot(pnl["receive_ts"], pnl["PnL"], label="PnL", color="orange")
     axs[1, 0].set_title("PnL")
     axs[1, 0].grid()
     axs[1, 0].legend(loc="lower left")
 
-    axs[1, 1].hist(pnl["total"], bins=50)
+    axs[1, 1].hist(pnl["PnL"], bins=100)
     axs[1, 1].set_title(
-        f"mean: {pnl['total'].mean():.2f}, std: {pnl['total'].std():.2f}, skew: {pnl['total'].skew():.2f}"
+        f"mean: {pnl['PnL'].mean():.4f}, std: {pnl['PnL'].std():.4f}, skew: {pnl['PnL'].skew():.2f}"
     )
     axs[1, 1].set_xlabel("PnL")
     axs[1, 1].set_ylabel("Frequency")
@@ -186,7 +188,7 @@ def evaluate_strategy(
     axs[2, 0].grid()
     axs[2, 0].legend(loc="upper left")
 
-    axs[2, 1].hist(pnl["inventory"], bins=50)
+    axs[2, 1].hist(pnl["inventory"], bins=100)
     axs[2, 1].axvline(x=strategy.min_position, color="red", linestyle="--")
     axs[2, 1].axvline(x=strategy.max_position, color="red", linestyle="--")
     axs[2, 1].set_title(
