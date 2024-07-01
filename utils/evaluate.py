@@ -9,9 +9,7 @@ from typing import List, Union, Tuple
 from environment.env import OwnTrade, MarketEvent, update_best_positions
 
 
-def get_pnl(
-    updates_list: List[Union[MarketEvent, OwnTrade]], maker_fee=0
-) -> pd.DataFrame:
+def get_pnl(updates_list: List[Union[MarketEvent, OwnTrade]]) -> pd.DataFrame:
     """
     This function calculates PnL from list of updates
     """
@@ -137,7 +135,7 @@ def evaluate_strategy(
     orders: List[Tuple],
 ):
 
-    pnl = get_pnl(updates_list, maker_fee=strategy.maker_fee)
+    pnl = get_pnl(updates_list)
     pnl["receive_ts"] = pnl["receive_ts"].apply(
         lambda x: datetime.datetime.fromtimestamp(x)
     )

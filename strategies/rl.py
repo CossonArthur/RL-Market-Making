@@ -110,7 +110,6 @@ class RLStrategy:
         initial_position: Optional[float] = None,
         hold_time: Optional[float] = None,
         trade_size: float = 0.01,
-        maker_fee: float = -0.00004,
         order_book_depth: int = 4,
         log: bool = True,
     ) -> None:
@@ -123,11 +122,9 @@ class RLStrategy:
             delay(float): delay beetween orders in nanoseconds
             hold_time(Optional[float]): hold time in nanoseconds
             trade_size(float): trade size
-            maker_fee(float): maker fee
             order_book_depth(int): order book depth to be considered for action space
         """
 
-        self.maker_fee = maker_fee
         self.trade_size = trade_size
         self.min_position = min_position
         self.max_position = max_position
@@ -300,21 +297,14 @@ class RLStrategy:
                     if order_type == "LIMIT" and update.execute == "TRADE":
                         if update.side == "buy":
                             self.inventory += update.size
-                            self.realized_pnl = (
-                                (1 + self.maker_fee) * update.price * update.size
-                            )
+                            reward = update.size * (best_ask - update.price)
                         else:
                             self.inventory -= update.size
-                            self.realized_pnl = (
-                                (1 - self.maker_fee) * update.price * update.size
-                            )
-                        self.unrealized_pnl = update.size * ((best_ask + best_bid) / 2)
-
-                        reward = self.realized_pnl + self.unrealized_pnl
+                            reward = update.size * (update.price - best_bid)
 
                         # penalize the agent for having a position too close to the limits (mean-reverting strategy)
                         reward -= (
-                            10
+                            1e2
                             * abs(
                                 inventory_ratio(
                                     self.inventory,
@@ -330,7 +320,7 @@ class RLStrategy:
                             self.inventory < self.min_position
                             or self.inventory > self.max_position
                         ):
-                            reward = -1e2
+                            reward = -1e3
 
                         # update state
                         current_state = self.get_state(
@@ -435,8 +425,6 @@ class RLStrategy:
     def reset(self):
 
         self.inventory = self.initial_position
-        self.realized_pnl = 0
-        self.unrealized_pnl = 0
 
         self.actions_history = []
         self.ongoing_orders = {}

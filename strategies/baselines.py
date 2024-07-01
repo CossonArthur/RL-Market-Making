@@ -27,7 +27,6 @@ class BestPosStrategy:
         min_position: Optional[float] = None,
         max_position: Optional[float] = None,
         trade_size: float = 0.01,
-        maker_fee: float = -0.00004,
         log: bool = True,
     ) -> None:
         """
@@ -36,7 +35,6 @@ class BestPosStrategy:
             hold_time(Optional[float]): holding time in nanoseconds
         """
         self.trade_size = trade_size
-        self.maker_fee = maker_fee
 
         self.delay = delay
         if hold_time is None:
@@ -229,7 +227,6 @@ class StoikovStrategy:
         trade_size: Optional[float] = 0.01,
         risk_aversion: Optional[float] = 0.5,
         k: Optional[float] = 1.5,
-        maker_fee: Optional[float] = -0.00004,
         log: bool = True,
     ) -> None:
         """
@@ -249,7 +246,6 @@ class StoikovStrategy:
         self.min_position = min_position
         self.max_position = max_position
         self.inventory = initial_position
-        self.maker_fee = maker_fee
 
         self.gamma = risk_aversion
         self.k = k
