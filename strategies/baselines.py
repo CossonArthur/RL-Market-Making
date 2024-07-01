@@ -140,7 +140,7 @@ class BestPosStrategy:
                 else:
                     assert False, "invalid type of update!"
 
-            if receive_ts - prev_time >= self.delay:
+            if receive_ts - prev_time >= self.delay and len(ongoing_orders) == 0:
                 prev_time = receive_ts
 
                 # place order

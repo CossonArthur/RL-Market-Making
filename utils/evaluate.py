@@ -43,11 +43,11 @@ def get_pnl(updates_list: List[Union[MarketEvent, OwnTrade]]) -> pd.DataFrame:
 
                 if update.side == "buy":
                     inv += update.size
-                    pnl_arr[i] = (mid_price_arr[i] - update.price) * update.size
+                    pnl_arr[i] = abs(mid_price_arr[i] - update.price) * update.size
 
                 elif update.side == "sell":
                     inv -= update.size
-                    pnl_arr[i] = (update.price - mid_price_arr[i]) * update.size
+                    pnl_arr[i] = abs(update.price - mid_price_arr[i]) * update.size
 
         inv_arr[i] = inv
 
@@ -140,7 +140,7 @@ def evaluate_strategy(
     pnl["receive_ts"] = pnl["receive_ts"].apply(
         lambda x: datetime.datetime.fromtimestamp(x)
     )
-    result = pnl.loc[pnl["PnL"] >= 0, ["receive_ts", "PnL"]]
+    result = pnl.loc[["receive_ts", "PnL"]]
     result.dropna(inplace=True)
 
     print(f"Executed Trades: {len([x for x in trades if x.execute == 'TRADE']):.0f}")
