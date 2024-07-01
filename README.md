@@ -27,7 +27,7 @@ The data used for this repository is the [Crypto Lake website](https://crypto-la
 ### State space 
 The state space is composed of the features study in the data preparation part. It is composed of the following features:
 - Inventory ratio
-$$ IR_t = \frac{Q_t - Q_{\text{min}}}{Q_{\text{max}} + Q_{\text{min}}}$$
+$$IR_t = \frac{Q_t - Q_{\text{min}}}{Q_{\text{max}} + Q_{\text{min}}}$$
 - Books imbalance
 $$\text{Book Imbalance} = \frac{\text{Total Bids} - \text{Total Asks}}{\text{Total Bids} + \text{Total Asks}}$$
 - Volatility
@@ -49,9 +49,9 @@ The action space is **discrete** and is a tuple of two elements:
 
 ### Reward
 The rewards *awards* the agent when he is **making profit** from either the **spread** or the **inventory**. He is *penalized* when he is **holding an order for too long** and when **the risk** associated to being exposed to variations in the mid price is too high, as well as when the agent holds more than the maximum inventory.
-The reward is calculated as using (Sadighian, J. (2020). Extending deep reinforcement learning frameworks in cryptocurrency market making)
+
 $$
-    r_t = \left\{
+r_t = \left\{
     \begin{array}{ll}
         x_t^{\text{size}} * \delta_t - 10^3  |\frac{Q_t - Q_{\text{min}}}{Q_{\text{max}} - Q_{\text{min}}} - 0.5|^2 & \text{order executed} \\
         - \frac{\Delta t_{\text{hold}}}{\Delta t_{\text{order}}} & \text{order not executed} \\
