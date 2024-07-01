@@ -36,6 +36,7 @@ def get_pnl(updates_list: List[Union[MarketEvent, OwnTrade]]) -> pd.DataFrame:
             best_bid, best_ask = update_best_positions(
                 best_bid, best_ask, update, levels=False
             )
+            pnl_arr[i] = np.nan
 
         if isinstance(update, OwnTrade):
             if update.execute == "TRADE":
@@ -139,10 +140,11 @@ def evaluate_strategy(
     pnl["receive_ts"] = pnl["receive_ts"].apply(
         lambda x: datetime.datetime.fromtimestamp(x)
     )
-    pnl = pnl.loc[pnl["PnL"] >= 0]
+    result = pnl.loc[pnl["PnL"] >= 0, ["receive_ts", "PnL"]]
+    result.dropna(inplace=True)
 
     print(f"Executed Trades: {len([x for x in trades if x.execute == 'TRADE']):.0f}")
-    print(f"Mean PnL: {pnl['PnL'].mean():.4f}")
+    print(f"Mean PnL: {result['PnL'].mean():.6f}")
 
     fig, axs = plt.subplots(3, 2, figsize=(15, 10), width_ratios=[2, 1])
 
@@ -164,14 +166,14 @@ def evaluate_strategy(
     axs[0, 1].set_ylabel("Frequency")
     axs[0, 1].grid()
 
-    axs[1, 0].plot(pnl["receive_ts"], pnl["PnL"], label="PnL", color="orange")
+    axs[1, 0].plot(result["receive_ts"], result["PnL"], label="PnL", color="orange")
     axs[1, 0].set_title("PnL")
     axs[1, 0].grid()
     axs[1, 0].legend(loc="lower left")
 
-    axs[1, 1].hist(pnl["PnL"], bins=100)
+    axs[1, 1].hist(result["PnL"], bins=100)
     axs[1, 1].set_title(
-        f"mean: {pnl['PnL'].mean():.4f}, std: {pnl['PnL'].std():.4f}, skew: {pnl['PnL'].skew():.2f}"
+        f"mean: {result['PnL'].mean():.4f}, std: {result['PnL'].std():.4f}, skew: {result['PnL'].skew():.2f}"
     )
     axs[1, 1].set_xlabel("PnL")
     axs[1, 1].set_ylabel("Frequency")
