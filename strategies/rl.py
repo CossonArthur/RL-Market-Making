@@ -359,7 +359,7 @@ class RLStrategy:
                     sim.cancel_order(receive_ts, ID)
                     to_cancel.append(ID)
 
-                    reward = -self.hold_time / self.delay
+                    reward = -10*self.hold_time / self.delay
 
                     # update state
                     current_state = self.get_state(

@@ -140,7 +140,7 @@ def evaluate_strategy(
     pnl["receive_ts"] = pnl["receive_ts"].apply(
         lambda x: datetime.datetime.fromtimestamp(x)
     )
-    result = pnl.loc[["receive_ts", "PnL"]]
+    result = pnl.loc[:, ["receive_ts", "PnL"]]
     result.dropna(inplace=True)
 
     print(f"Executed Trades: {len([x for x in trades if x.execute == 'TRADE']):.0f}")
