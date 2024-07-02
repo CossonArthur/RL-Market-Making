@@ -79,12 +79,16 @@ $\Delta t_{\text{order}}$ is minimum time interval in between orders
 ## Results
 
 ### Q Learning
+![Market Making](images/qlearning.png)
 
 ### SARSA
+![Market Making](images/sarsa.png)
 
 ### Naive Strategy
+![Market Making](images/naive.png)
 
 ### Stoikov Strategy
+![Market Making](images/stoikov.png)
 
 
 
